@@ -2,10 +2,12 @@ package net.juniper.contrail.vcenter;
 
 import java.util.SortedMap;
 import java.util.concurrent.ConcurrentSkipListMap;
+import com.vmware.vim25.mo.DistributedVirtualPortgroup;
+import net.juniper.contrail.api.types.VirtualNetwork;
 
 public class VmwareVirtualNetworkInfo {
+    private String uuid; // required attribute, key for this object
     private String name;
-    private String uuid;
     private short isolatedVlanId;
     private short primaryVlanId;
     private SortedMap<String, VmwareVirtualMachineInfo> vmInfo;
@@ -15,6 +17,9 @@ public class VmwareVirtualNetworkInfo {
     private boolean ipPoolEnabled;
     private String range;
     private boolean externalIpam;
+    DistributedVirtualPortgroup dpg;
+    
+    net.juniper.contrail.api.types.VirtualNetwork apiVn;
 
     public VmwareVirtualNetworkInfo(String name, short isolatedVlanId,
             short primaryVlanId, SortedMap<String, VmwareVirtualMachineInfo> vmInfo,
@@ -30,9 +35,11 @@ public class VmwareVirtualNetworkInfo {
         this.ipPoolEnabled = ipPoolEnabled;
         this.range = range;
         this.externalIpam = externalIpam;
+        vmInfo = new ConcurrentSkipListMap<String, VmwareVirtualMachineInfo>();
     }
 
-    public VmwareVirtualNetworkInfo() {
+    public VmwareVirtualNetworkInfo(String uuid) {
+        this.uuid = uuid;
         vmInfo = new ConcurrentSkipListMap<String, VmwareVirtualMachineInfo>();
     }
 
@@ -124,6 +131,14 @@ public class VmwareVirtualNetworkInfo {
         this.uuid = uuid;
     }
 
+    public DistributedVirtualPortgroup getDpg() {
+        return dpg;
+    }
+    
+    public void setDpg(DistributedVirtualPortgroup dpg) {
+        this.dpg = dpg;
+    }
+    
     public boolean equals(VmwareVirtualNetworkInfo vn) {
         if (name != null && !name.equals(vn.name)
                 || name == null && vn.name != null) {

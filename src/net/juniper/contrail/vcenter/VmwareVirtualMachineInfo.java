@@ -1,25 +1,27 @@
 package net.juniper.contrail.vcenter;
 
 import com.vmware.vim25.VirtualMachinePowerState;
-
 import java.util.Iterator;
 import java.util.Map.Entry;
 import java.util.SortedMap;
 import java.util.concurrent.ConcurrentSkipListMap;
-
 import com.vmware.vim25.ManagedObjectReference;
+import net.juniper.contrail.api.types.VirtualMachine;
 
 public class VmwareVirtualMachineInfo {
+    private String uuid; // required attribute, key for this object
     ManagedObjectReference hmor;
     private String hostName;
     private String vrouterIpAddress;
     private String macAddress;
     private String ipAddress;
     private String name;
-    private String uuid;
     private String interfaceUuid;
     private VirtualMachinePowerState powerState;
-    private SortedMap<String, VmwareVirtualNetworkInfo> vnInfo;
+    private SortedMap<String, VmwareVirtualMachineInterfaceInfo> vmiInfo;
+    
+    //API server objects
+    net.juniper.contrail.api.types.VirtualMachine apiVm;
 
     public VmwareVirtualMachineInfo(String name, String hostName, 
             ManagedObjectReference hmor,
@@ -32,11 +34,12 @@ public class VmwareVirtualMachineInfo {
         this.powerState       = powerState;
         this.hmor             = hmor;
 
-        vnInfo = new ConcurrentSkipListMap<String, VmwareVirtualNetworkInfo>();
+        vmiInfo = new ConcurrentSkipListMap<String, VmwareVirtualMachineInterfaceInfo>();
     }
 
-    public VmwareVirtualMachineInfo() {
-        vnInfo = new ConcurrentSkipListMap<String, VmwareVirtualNetworkInfo>();
+    public VmwareVirtualMachineInfo(String uuid) {
+        this.uuid = uuid;
+        vmiInfo = new ConcurrentSkipListMap<String, VmwareVirtualMachineInterfaceInfo>();
     }
 
     public String getHostName() {
@@ -124,12 +127,12 @@ public class VmwareVirtualMachineInfo {
             return false;
     }
 
-    public SortedMap<String, VmwareVirtualNetworkInfo> getVnInfo() {
-        return vnInfo;
+    public SortedMap<String, VmwareVirtualMachineInterfaceInfo> getVmiInfo() {
+        return vmiInfo;
     }
 
-    public void setVnInfo(SortedMap<String, VmwareVirtualNetworkInfo> vnInfo) {
-        this.vnInfo = vnInfo;
+    public void setVmiInfo(SortedMap<String, VmwareVirtualMachineInterfaceInfo> vmiInfo) {
+        this.vmiInfo = vmiInfo;
     }
 
     public boolean updateVrouterNeeded(VmwareVirtualMachineInfo vm) {
@@ -137,11 +140,8 @@ public class VmwareVirtualMachineInfo {
             return true;
         }
         
-        return ( !ipAddress.equals(vm.ipAddress)
-                || !macAddress.equals(vm.macAddress)
-                || !powerState.equals(vm.powerState)
-                || !vrouterIpAddress.equals(vm.vrouterIpAddress)
-                || !equalNetworks(vm));
+        // for now all fields trigger an update
+        return (!equals(vm));
     }
 
     public boolean equals(VmwareVirtualMachineInfo vm) {
@@ -180,21 +180,21 @@ public class VmwareVirtualMachineInfo {
                 || (powerState == null && vm.powerState != null)) {
             return false;
         }
-        return equalNetworks(vm);
+        return equalVmi(vm);
     }
 
-    public boolean equalNetworks(VmwareVirtualMachineInfo vm) {
-        if (vnInfo.size() != vm.vnInfo.size()) {
+    public boolean equalVmi(VmwareVirtualMachineInfo vm) {
+        if (vmiInfo.size() != vm.vmiInfo.size()) {
             return false;
         }
         
-        Iterator<Entry<String, VmwareVirtualNetworkInfo>> iter1 =
-                vnInfo.entrySet().iterator();
-        Iterator<Entry<String, VmwareVirtualNetworkInfo>> iter2 =
-                vm.vnInfo.entrySet().iterator();
+        Iterator<Entry<String, VmwareVirtualMachineInterfaceInfo>> iter1 =
+                vmiInfo.entrySet().iterator();
+        Iterator<Entry<String, VmwareVirtualMachineInterfaceInfo>> iter2 =
+                vm.vmiInfo.entrySet().iterator();
         while (iter1.hasNext() && iter2.hasNext()) {
-            Entry<String, VmwareVirtualNetworkInfo> entry1 = iter1.next();
-            Entry<String, VmwareVirtualNetworkInfo> entry2 = iter2.next();
+            Entry<String, VmwareVirtualMachineInterfaceInfo> entry1 = iter1.next();
+            Entry<String, VmwareVirtualMachineInterfaceInfo> entry2 = iter2.next();
 
             if (!entry1.getKey().equals(entry2.getKey())
                     || !entry1.getValue().equals(entry2.getValue())) {

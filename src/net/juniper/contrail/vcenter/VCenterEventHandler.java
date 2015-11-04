@@ -6,6 +6,9 @@
 package net.juniper.contrail.vcenter;
 
 import java.io.IOException;
+import java.util.Iterator;
+import java.util.Map.Entry;
+
 import com.vmware.vim25.Event;
 import com.vmware.vim25.VmDeployedEvent;
 import com.vmware.vim25.VmPoweredOffEvent;
@@ -74,6 +77,7 @@ public class VCenterEventHandler implements Runnable {
     }
 
     public void handleEvent(VmDeployedEvent event) throws IOException {
+        VmwareVirtualMachineInfo vmInfo = vcenterEvent.vmInfo;
         vcenterDB.updateVM(vcenterEvent);
 
         if (!vcenterEvent.changed) {
@@ -81,15 +85,15 @@ public class VCenterEventHandler implements Runnable {
             // nothing to do in this case
             return;
         }
-        vncDB.createOrUpdateVmApiObjects(vcenterEvent);
+        vncDB.createOrUpdateVmApiObjects(vmInfo);
         
         // add a watch on this Vm so we are notified of further changes
         // from CacheFrameworkSample
         watchVm(vcenterEvent);
 
         // if vm powered on add port
-        if (vcenterEvent.vmInfo.isPoweredOnState()) {
-            VRouterNotifier.addPort(vcenterEvent);
+        if (vmInfo.isPoweredOnState()) {
+           // VRouterNotifier.addPort(vcenterEvent);
         }
     }
 
@@ -99,29 +103,38 @@ public class VCenterEventHandler implements Runnable {
         if (!vcenterEvent.changed) {
             return;
         }
-        vncDB.createOrUpdateVmApiObjects(vcenterEvent);
+        VmwareVirtualMachineInfo vmInfo = vcenterEvent.vmInfo;
+        vncDB.createOrUpdateVmApiObjects(vmInfo);
         
         // if reconfigured triggered a change in new, ip address or mac
         if (vcenterEvent.updateVrouterNeeded) {
-            VRouterNotifier.deletePort(vcenterEvent);
-            VRouterNotifier.addPort(vcenterEvent);
+            Iterator<Entry<String, VmwareVirtualMachineInterfaceInfo>> iter =
+                    vmInfo.getVmiInfo().entrySet().iterator();
+            while (iter.hasNext()) {
+                Entry<String, VmwareVirtualMachineInterfaceInfo> entry = iter.next();
+                VmwareVirtualMachineInterfaceInfo vmiInfo = entry.getValue();
+                VRouterNotifier.deletePort(vmiInfo);
+                VRouterNotifier.addPort(vmiInfo);
+            }
         }
     }
 
     public void handleEvent(VmPoweredOnEvent value) throws IOException {
         // TODO if this is VCenter as a compute, do not do the below line
+        /*
         vcenterDB.updateVM(vcenterEvent);
         if (vcenterEvent.updateVrouterNeeded) {
             VRouterNotifier.addPort(vcenterEvent);
-        }
+        }*/
     }
 
     public void handleEvent(VmPoweredOffEvent value) throws IOException {
         // TODO if this is VCenter as a compute, do not do the below line
+        /*
         vcenterDB.updateVM(vcenterEvent);
         if (vcenterEvent.updateVrouterNeeded) {
             VRouterNotifier.deletePort(vcenterEvent);
-        }
+        }*/
     }
 
     public void handleEvent(Event event) throws IOException {

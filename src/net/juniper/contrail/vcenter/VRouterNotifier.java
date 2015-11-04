@@ -12,17 +12,23 @@ import java.util.UUID;
 import net.juniper.contrail.contrail_vrouter_api.ContrailVRouterApi;
 
 public class VRouterNotifier {
-    static volatile HashMap<String, ContrailVRouterApi> vrouterApiMap;
+    static volatile HashMap<String, ContrailVRouterApi> vrouterApiMap = 
+            new HashMap<String, ContrailVRouterApi>();
     static final int vrouterApiPort = 9090;
 
-    public VRouterNotifier() {
-        vrouterApiMap = new HashMap<String, ContrailVRouterApi>();
-    }
+    public static void addPort(VmwareVirtualMachineInterfaceInfo vmiInfo) {
 
-    public static void addPort(EventData event) {
+        if (vmiInfo == null || vmiInfo.apiVmi == null || vmiInfo.apiInstanceIp == null
+                || vmiInfo.vmInfo == null || vmiInfo.vmInfo.apiVm == null 
+                || vmiInfo.vnInfo == null || vmiInfo.vnInfo.apiVn == null) {
+                
+            throw new IllegalArgumentException("Null argument");
+        }
 
-        String vrouterIpAddress = event.vrouterIpAddress;
-
+        String vrouterIpAddress = vmiInfo.getVmInfo().getVrouterIpAddress();
+        VmwareVirtualMachineInfo vmInfo = vmiInfo.vmInfo;
+        VmwareVirtualNetworkInfo vnInfo = vmiInfo.vnInfo;
+        
         // Plug notification to vrouter
         if (vrouterIpAddress == null) {
             /*s_logger.warn("Virtual machine: " + vmName + " esxi host: " + hostName
@@ -37,15 +43,14 @@ public class VRouterNotifier {
                         vrouterApiPort, false, 1000);
                 vrouterApiMap.put(vrouterIpAddress, vrouterApi);
             }
-            if (event.vmInfo.isPoweredOnState()) {
-                boolean ret = vrouterApi.AddPort(UUID.fromString(event.apiVmi.getUuid()),
-                        UUID.fromString(event.apiVm.getUuid()), event.apiVmi.getName(),
-                        //TODO make sure these are set
-                        InetAddress.getByName(event.vmInfo.getIpAddress()),
-                        Utils.parseMacAddress(event.vmInfo.getMacAddress()),
-                        UUID.fromString(event.apiVn.getUuid()),
-                        event.vnInfo.getIsolatedVlanId(),
-                        event.vnInfo.getPrimaryVlanId(), event.vmInfo.getName());
+            if (vmInfo.isPoweredOnState()) {
+                boolean ret = vrouterApi.AddPort(UUID.fromString(vmiInfo.getUuid()),
+                        UUID.fromString(vmInfo.getUuid()), vmiInfo.getUuid(),
+                        InetAddress.getByName(vmiInfo.getIpAddress()),
+                        Utils.parseMacAddress(vmiInfo.getMacAddress()),
+                        UUID.fromString(vnInfo.getUuid()),
+                        vnInfo.getIsolatedVlanId(),
+                        vnInfo.getPrimaryVlanId(), vmInfo.getName());
                 if ( ret == true) {
                     /*
                     s_logger.info("VRouterAPi Add Port success - interface name:"
@@ -78,6 +83,6 @@ public class VRouterNotifier {
         }
     }
 
-    public static void deletePort(EventData event) {
+    public static void deletePort(VmwareVirtualMachineInterfaceInfo vmiInfo) {
     }
 }

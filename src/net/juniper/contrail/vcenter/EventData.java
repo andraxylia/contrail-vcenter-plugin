@@ -9,28 +9,40 @@ package net.juniper.contrail.vcenter;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.rmi.RemoteException;
+import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.SortedMap;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import com.vmware.vim25.DVPortSetting;
+import com.vmware.vim25.DistributedVirtualSwitchKeyedOpaqueBlob;
 import com.vmware.vim25.Event;
 import com.vmware.vim25.GuestInfo;
 import com.vmware.vim25.GuestNicInfo;
+import com.vmware.vim25.IpPool;
+import com.vmware.vim25.IpPoolIpPoolConfigInfo;
+import com.vmware.vim25.ManagedObjectReference;
 import com.vmware.vim25.NetIpConfigInfo;
 import com.vmware.vim25.NetIpConfigInfoIpAddress;
-import com.vmware.vim25.VirtualMachineConfigInfo;
+import com.vmware.vim25.VMwareDVSConfigInfo;
+import com.vmware.vim25.VMwareDVSPvlanMapEntry;
+import com.vmware.vim25.VirtualMachinePowerState;
+import com.vmware.vim25.VirtualMachineRuntimeInfo;
 import com.vmware.vim25.VmDasBeingResetEventReasonCode;
 import com.vmware.vim25.mo.Datacenter;
 import com.vmware.vim25.mo.Datastore;
 import com.vmware.vim25.mo.VirtualMachine;
 import com.vmware.vim25.mo.VmwareDistributedVirtualSwitch;
+import com.vmware.vim25.mo.util.PropertyCollectorUtil;
 import com.vmware.vim25.mo.DistributedVirtualPortgroup;
 import com.vmware.vim25.mo.Folder;
 import com.vmware.vim25.mo.Network;
 import com.vmware.vim25.mo.HostSystem;
 import com.vmware.vim25.mo.InventoryNavigator;
 import com.vmware.vim25.mo.IpPoolManager;
+import com.vmware.vim25.mo.ManagedObject;
 
 public class EventData {
     VCenterDB vcenterDB;
@@ -95,14 +107,7 @@ public class EventData {
             dpgName = event.getNet().getName();
             dpg = vcenterDB.getVmwareDpg(dpgName, dvs, dvsName, dcName);
 
-            vnInfo = new VmwareVirtualNetworkInfo();
-            vnInfo.setName(dpg.getName());
-            String vnUuid = UUID.nameUUIDFromBytes(dpg.getKey().getBytes()).toString();
-            vnInfo.setUuid(vnUuid);
-            //TODO populate all fields
-            //vnInfo.setExternalIpam(externalIpam);
-            //vnInfo.setGatewayAddress(gatewayAddress);
-            //vnInfo.setIsolatedVlanId(vlanId);
+            vnInfo = vcenterDB.createVnInfo(this);
         }
 
         if (event.getHost() != null) {
@@ -115,36 +120,11 @@ public class EventData {
 
             if (event.getVm() != null) {
                 vmName = event.getVm().getName();
+  
                 vm = vcenterDB.getVmwareVirtualMachine(vmName, host, hostName, dcName);
 
-                //dpg is not set
-                //vmInfo = vcenterDB.fillVmwareVirtualMachineInfo(vm, vm.getConfig(), dpg);
-
-                vmInfo = new VmwareVirtualMachineInfo();
-                vmInfo.setName(vmName);
-                vmInfo.setHostName(hostName);
-                vmInfo.setVrouterIpAddress(vrouterIpAddress);
-                vmInfo.setUuid(vm.getConfig().getInstanceUuid());
-                //vmInfo.setPowerState();,
-                //vmInfo.setVmMac();
-                //vmInfo.setVnInfo();
-
-                Network[] nets = vm.getNetworks();
-                SortedMap<String, VmwareVirtualNetworkInfo> vnInfoMap =
-                        vmInfo.getVnInfo();
-
-                for (Network net: nets) {
-                    String vnName = net.getName();
-                    VmwareVirtualNetworkInfo vnInfo =
-                            vcenterDB.getVN(vnName, dvs, dvsName, dcName);
-                    if (vnInfo == null) {
-                        vnInfo = vcenterDB.createVN(vnName, dvs, dvsName, dcName);
-                    }
-                    if (vnInfo != null) {
-                        vnInfoMap.put(vnInfo.getUuid(), vnInfo);
-                    }
-                }
-            }
+                vmInfo = vcenterDB.createVmInfo(this);              
+             }
         }
     }
 }
