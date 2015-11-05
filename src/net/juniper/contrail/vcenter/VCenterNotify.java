@@ -67,7 +67,8 @@ public class VCenterNotify implements Runnable
     private static final Logger s_logger =
             Logger.getLogger(VCenterNotify.class);
     static VCenterMonitorTask monitorTask = null;
-
+    volatile VCenterDB vcenterDB;
+    volatile VncDB vncDB;
     private final String contrailDataCenterName;
     private final String vcenterUrl;
     private final String vcenterUsername;
@@ -137,11 +138,14 @@ public class VCenterNotify implements Runnable
             "MigrationEvent",
     };
 
-    public VCenterNotify(VCenterMonitorTask _monitorTask,
+    public VCenterNotify(VCenterMonitorTask _monitorTask, VCenterDB vcenterDB,
+            VncDB vncDB,
             String vcenterUrl, String vcenterUsername,
             String vcenterPassword, String contrailDcName)
     {
         this.monitorTask            = _monitorTask;
+        this.vcenterDB              = vcenterDB;
+        this.vncDB                  = vncDB;
         this.vcenterUrl             = vcenterUrl;
         this.vcenterUsername        = vcenterUsername;
         this.vcenterPassword        = vcenterPassword;
@@ -383,18 +387,18 @@ public class VCenterNotify implements Runnable
                     }
                 } else if ((value instanceof EnteredMaintenanceModeEvent) || (value instanceof HostConnectionLostEvent)) {
                     Event anEvent = (Event) value;
-                    String vRouterIpAddress = monitorTask.getVCenterDB().esxiToVRouterIpMap.get(anEvent.getHost().getName());
+                    String vRouterIpAddress = vcenterDB.esxiToVRouterIpMap.get(anEvent.getHost().getName());
                     if (vRouterIpAddress != null) {
-                        monitorTask.getVCenterDB().vRouterActiveMap.put(vRouterIpAddress, false);
+                        vcenterDB.vRouterActiveMap.put(vRouterIpAddress, false);
                         s_logger.info("\nEntering maintenance mode. Marking the host " + vRouterIpAddress +" inactive");
                     } else {
                         s_logger.info("\nNot managing the host " + vRouterIpAddress +" inactive");
                     }
                 } else if ((value instanceof ExitMaintenanceModeEvent) || (value instanceof HostConnectedEvent)) {
                     Event anEvent = (Event) value;
-                    String vRouterIpAddress = monitorTask.getVCenterDB().esxiToVRouterIpMap.get(anEvent.getHost().getName());
+                    String vRouterIpAddress = vcenterDB.esxiToVRouterIpMap.get(anEvent.getHost().getName());
                     if (vRouterIpAddress != null) {
-                        monitorTask.getVCenterDB().vRouterActiveMap.put(vRouterIpAddress, true);
+                        vcenterDB.vRouterActiveMap.put(vRouterIpAddress, true);
                         s_logger.info("\nExit maintenance mode. Marking the host " + vRouterIpAddress +" active");
                     } else {
                         s_logger.info("\nNot managing the host " + vRouterIpAddress +" inactive");
@@ -438,7 +442,7 @@ public class VCenterNotify implements Runnable
                             + "\n FullFormattedMessage: " + anEvent.getFullFormattedMessage()
                             + "\n----------\n");
                     notifExec.schedule(new VCenterEventHandler(anEvent, 
-                            monitorTask.getVCenterDB(), monitorTask.getVncDB()), 
+                            vcenterDB, vncDB), 
                             0, TimeUnit.SECONDS);
                 }
                 s_logger.info("===============");

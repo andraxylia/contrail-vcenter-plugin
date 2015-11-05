@@ -1,6 +1,8 @@
 package net.juniper.contrail.vcenter;
 
+import java.util.Iterator;
 import java.util.SortedMap;
+import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentSkipListMap;
 import com.vmware.vim25.mo.DistributedVirtualPortgroup;
 import net.juniper.contrail.api.types.VirtualNetwork;
@@ -140,6 +142,9 @@ public class VmwareVirtualNetworkInfo {
     }
     
     public boolean equals(VmwareVirtualNetworkInfo vn) {
+        if (vn == null) {
+            return false;
+        }
         if (name != null && !name.equals(vn.name)
                 || name == null && vn.name != null) {
             return false;
@@ -174,8 +179,18 @@ public class VmwareVirtualNetworkInfo {
     }
     
     public String toString() {
-        return "VN <"
-                + name
-                + ", " + uuid + ">";
+        return "VN <" + name + ", " + uuid + ">";
+    }
+    
+    public StringBuffer toStringBuffer() {
+        StringBuffer s = new StringBuffer(
+                "VN <" + name + ", " + uuid + ">\n");
+        Iterator<Entry<String, VmwareVirtualMachineInfo>> iter =
+                vmInfo.entrySet().iterator();
+        while (iter.hasNext()) {
+            Entry<String, VmwareVirtualMachineInfo> entry = iter.next();
+            s.append(entry.getValue().toString());
+        }
+        return s;
     }
 }

@@ -186,6 +186,7 @@ public class VCenterMonitor {
         s_logger.info("Acquired zookeeper Mastership .. ");
 
         // Launch the periodic VCenterMonitorTask
+        /*
         VCenterMonitorTask _monitorTask = null;
         if (_mode == "vcenter-only") {
             s_logger.info("vcenter-only mode of operation.. ");
@@ -204,9 +205,6 @@ public class VCenterMonitor {
                                   _authtype, _authurl);
         }
 
-        _vncDB = _monitorTask.getVncDB();
-        _vcenterDB = _monitorTask.getVCenterDB();
-
         scheduledTaskExecutor.scheduleWithFixedDelay(_monitorTask, 0, 4, //4 second periodic
                 TimeUnit.SECONDS);
         Runtime.getRuntime().addShutdownHook(
@@ -221,9 +219,24 @@ public class VCenterMonitor {
             } catch (java.lang.InterruptedException e) {
               System.out.println(e);
             }
+        }*/
+        
+        _vncDB = new VncDB(_apiServerAddress, _apiServerPort);
+        while (_vncDB.Initialize() != true) {
+            Thread.sleep(2);
         }
+        _vcenterDB = new VCenterDB(_vcenterURL, _vcenterUsername, _vcenterPassword,
+                _vcenterDcName, _vcenterDvsName, _vcenterIpFabricPg);
+        
+        while (_vcenterDB.Initialize() != true) {
+            Thread.sleep(2);
+        }
+        while (_vcenterDB.Initialize_data() != true) {
+            Thread.sleep(2);
+        }
+ 
         s_logger.info("Starting event monitor Task.. ");
-        _eventMonitor = new VCenterNotify(_monitorTask, _vcenterURL,
+        _eventMonitor = new VCenterNotify(null, _vcenterDB, _vncDB, _vcenterURL,
                                           _vcenterUsername, _vcenterPassword,
                                           _vcenterDcName);
         _eventMonitor.start();

@@ -1364,8 +1364,7 @@ public class VCenterDB {
         return vcenterUrl; 
     }
 
-    public void updateVM(EventData event) {
-        VmwareVirtualMachineInfo vmInfo = event.vmInfo;
+    public void updateVM(VmwareVirtualMachineInfo vmInfo) {
         String uuid = vmInfo.getUuid();
 
         if (vmwareVMs.containsKey(uuid)) {
@@ -1373,29 +1372,21 @@ public class VCenterDB {
         } else {
             s_logger.info("Add: " + vmInfo);
         }
-        VmwareVirtualMachineInfo oldVmInfo = vmwareVMs.get(uuid);
-        event.changed = !vmInfo.equals(oldVmInfo);
-        event.updateVrouterNeeded = vmInfo.updateVrouterNeeded(oldVmInfo);
         vmwareVMs.put(uuid, vmInfo);
     }
 
-    public void deleteVM(EventData event)
-            throws RemoteException {
-        VmwareVirtualMachineInfo vmInfo = event.vmInfo;
+    public void deleteVM(VmwareVirtualMachineInfo vmInfo) {
         String uuid = vmInfo.getUuid();
 
         if (!vmwareVMs.containsKey(uuid)) {
-            s_logger.info("Already deleted: " + vmInfo);
+            s_logger.error("Could not find and delete: " + vmInfo);
             return;
         }
         s_logger.info("Delete: " + vmInfo);
         vmwareVMs.remove(uuid);
-        event.changed = true;
-        event.updateVrouterNeeded = true;
     }
 
-    public void updateVN(EventData event) {
-        VmwareVirtualNetworkInfo vnInfo = event.vnInfo;
+    public void updateVN(VmwareVirtualNetworkInfo vnInfo) {
         String uuid = vnInfo.getUuid();
 
         if (vmwareVNs.containsKey(uuid)) {
@@ -1403,30 +1394,21 @@ public class VCenterDB {
         } else {
             s_logger.info("Add: " + vnInfo);
         }
-        VmwareVirtualNetworkInfo oldVnInfo = vmwareVNs.get(uuid);
-        event.changed = !vnInfo.equals(oldVnInfo);
         vmwareVNs.put(uuid, vnInfo);
     }
 
-    public void deleteVN(EventData event)
-            throws RemoteException {
-        VmwareVirtualNetworkInfo vnInfo = event.vnInfo;
+    public void deleteVN(VmwareVirtualNetworkInfo vnInfo) {
         String uuid = vnInfo.getUuid();
 
         if (!vmwareVNs.containsKey(uuid)) {
-            s_logger.info("Already deleted: " + vnInfo);
+            s_logger.info("Could not find and delete: " + vnInfo);
             return;
         }
         s_logger.info("Delete: " + vnInfo);
         vmwareVNs.remove(uuid);
-        event.changed = true;
-        event.updateVrouterNeeded = true;
     }
 
-    public VmwareVirtualNetworkInfo getVN(String name,
-            VmwareDistributedVirtualSwitch dvs, String dvsName,
-            String dcName) {
-
+    public VmwareVirtualNetworkInfo getVnByName(String name) {
         for (VmwareVirtualNetworkInfo vnInfo: vmwareVNs.values()) {
             if (vnInfo.getName().equals(name)) {
                 return vnInfo;
@@ -1435,7 +1417,20 @@ public class VCenterDB {
         return null;
     }
 
-
+    public VmwareVirtualNetworkInfo getVnById(String uuid) {
+        if (vmwareVNs.containsKey(uuid)) {
+            return vmwareVNs.get(uuid);
+        }
+        return null;
+    }
+    
+    public VmwareVirtualMachineInfo getVmById(String uuid) {
+        if (vmwareVMs.containsKey(uuid)) {
+            return vmwareVMs.get(uuid);
+        }
+        return null;
+    }
+    
     public Datacenter getVmwareDatacenter(String name)
         throws RemoteException {
         String description = "<datacenter " + name
@@ -1743,12 +1738,12 @@ public class VCenterDB {
         vmInfo.setPowerState(vmRuntimeInfo.getPowerState());
 
         Network[] nets = vm.getNetworks();
-        SortedMap<String, VmwareVirtualMachineInterfaceInfo> vmiInfo =
+        SortedMap<String, VmwareVirtualMachineInterfaceInfo> vmiInfoMap =
                 vmInfo.getVmiInfo();
 
         for (Network net: nets) {
             event.nwName = net.getName();
-            VmwareVirtualNetworkInfo vnInfo = getVN(event.nwName, dvs, dvsName, dcName);
+            VmwareVirtualNetworkInfo vnInfo = getVnByName(event.nwName);
             if (vnInfo == null) {
                 vnInfo = createVnInfo(event);
             }
@@ -1756,12 +1751,12 @@ public class VCenterDB {
                 // log error
                 continue;
             }
-            
+
             String vmiUuid = UUID.randomUUID().toString();
-            VmwareVirtualMachineInterfaceInfo vmi = 
+            VmwareVirtualMachineInterfaceInfo vmiInfo = 
                     new VmwareVirtualMachineInterfaceInfo(vmiUuid);
-            vmi.setVmInfo(vmInfo);
-            vmi.setVnInfo(vnInfo);
+            vmiInfo.setVmInfo(vmInfo);
+            vmiInfo.setVnInfo(vnInfo);
             
             // Extract MAC address
             String vmMac = getVirtualMachineMacAddress(vm.getConfig(), vnInfo.getDpg());
@@ -1770,12 +1765,9 @@ public class VCenterDB {
                         vmName + " MAC Address NOT found");
                 return null;
             }
-            vmi.setMacAddress(vmMac);
-            
-            // update references
-            vnInfo.getVmInfo().put(vmInfo.getUuid(), vmInfo);
+            vmiInfo.setMacAddress(vmMac);
 
-            vmiInfo.put(vnInfo.getUuid(), vmi);
+            vmiInfoMap.put(vmiInfo.getUuid(), vmiInfo);
         }
 
         return vmInfo;
@@ -1788,7 +1780,6 @@ public class VCenterDB {
         String dvsName = event.dvsName; 
         Datacenter dc = event.dc;
         String dcName = event.dcName;
-        DistributedVirtualPortgroup dpg = event.dpg;
         
         if (name == null || dvs == null || dvsName == null
                 || dc == null || dcName == null) {
@@ -1827,9 +1818,10 @@ public class VCenterDB {
                     "configured");
             return null;
         }
-    
+
+        DistributedVirtualPortgroup dpg = getVmwareDpg(name, dvs, dvsName, dcName);
         ManagedObject mo[] = new ManagedObject[1];
-        mo[0] = dpg;
+        mo[0] = dpg; 
         
         Hashtable[] pTables = PropertyCollectorUtil.retrieveProperties(mo,
                                 "DistributedVirtualPortgroup",
@@ -1902,9 +1894,19 @@ public class VCenterDB {
             opaqueBlobs = (DistributedVirtualSwitchKeyedOpaqueBlob[]) obj;
         }
         vnInfo.setExternalIpam(getExternalIpamInfo(opaqueBlobs, vnName));
-
-        vmwareVNs.put(vnUuid, vnInfo);
         
         return vnInfo;
+    }
+    
+    public void printInfo() {
+        s_logger.info("Andra networks:");
+        for (VmwareVirtualNetworkInfo vnInfo: vmwareVNs.values()) {
+            s_logger.info(vnInfo.toStringBuffer().toString());
+        }
+        
+        s_logger.info("Andra VMs:");
+        for (VmwareVirtualMachineInfo vmInfo: vmwareVMs.values()) {
+            s_logger.info(vmInfo.toStringBuffer().toString());
+        }
     }
 }

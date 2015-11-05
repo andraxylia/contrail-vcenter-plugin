@@ -56,6 +56,8 @@ public class VCenterEventHandler implements Runnable {
     public void run() {
         printEvent();
 
+        vcenterDB.printInfo();
+        
         try {
             vcenterEvent = new EventData(event, vcenterDB, vncDB);
 
@@ -93,6 +95,8 @@ public class VCenterEventHandler implements Runnable {
             // add this event to the retry queue
             return;
         }
+        
+        vcenterDB.printInfo();
     }
 
     private void watchVm() {
@@ -123,25 +127,68 @@ public class VCenterEventHandler implements Runnable {
             return;
         }
 
-        vcenterDB.updateVM(vcenterEvent);
-        
-        if (!vcenterEvent.changed) {
+        VmwareVirtualMachineInfo vmInfo = vcenterEvent.vmInfo;
+        VmwareVirtualMachineInfo oldVmInfo = vcenterDB.getVmById(vmInfo.getUuid());
+       
+        if (vmInfo.equals(oldVmInfo)) {
+            // nothing changed
             return;
         }
-        VmwareVirtualMachineInfo vmInfo = vcenterEvent.vmInfo;
-        vncDB.createOrUpdateVmApiObjects(vmInfo);
-        
-        // if reconfigured triggered a change in new, ip address or mac
-        if (vcenterEvent.updateVrouterNeeded) {
-            Iterator<Entry<String, VmwareVirtualMachineInterfaceInfo>> iter =
-                    vmInfo.getVmiInfo().entrySet().iterator();
-            while (iter.hasNext()) {
-                Entry<String, VmwareVirtualMachineInterfaceInfo> entry = iter.next();
-                VmwareVirtualMachineInterfaceInfo vmiInfo = entry.getValue();
-                VRouterNotifier.deletePort(vmiInfo);
+ 
+        vncDB.createOrUpdateApiVm(vmInfo);
+ 
+        boolean updateVrouterNeeded = vmInfo.updateVrouterNeeded(oldVmInfo);
+               
+        Iterator<Entry<String, VmwareVirtualMachineInterfaceInfo>> iter1 =
+                vmInfo.getVmiInfo().entrySet().iterator();
+        Iterator<Entry<String, VmwareVirtualMachineInterfaceInfo>> iter2 =
+                oldVmInfo.getVmiInfo().entrySet().iterator();
+        while (iter1.hasNext() && iter2.hasNext()) {
+            Entry<String, VmwareVirtualMachineInterfaceInfo> entry = iter1.next();
+            VmwareVirtualMachineInterfaceInfo vmiInfo = entry.getValue();
+            Entry<String, VmwareVirtualMachineInterfaceInfo> oldEntry = iter2.next();
+            VmwareVirtualMachineInterfaceInfo oldVmiInfo = oldEntry.getValue();
+            
+            if (updateVrouterNeeded || !entry.getKey().equals(oldEntry.getKey())
+                    || !vmiInfo.equals(oldVmiInfo)) {
+      
+                // something has changed for this adaptor
+                VRouterNotifier.deletePort(oldVmiInfo);
+                if (oldVmiInfo.vnInfo.getExternalIpam() == false) {
+                    vncDB.deleteApiInstanceIp(oldVmiInfo);
+                }
+                vncDB.deleteApiVmi(oldVmiInfo);
+                
+                vncDB.createOrUpdateApiVmi(vmiInfo);
+                if (vmiInfo.vnInfo.getExternalIpam() == false) {
+                    vncDB.createOrUpdateApiInstanceIp(vmiInfo);
+                }
                 VRouterNotifier.addPort(vmiInfo);
             }
         }
+        while (iter2.hasNext()) {
+            Entry<String, VmwareVirtualMachineInterfaceInfo> oldEntry = iter2.next();
+            VmwareVirtualMachineInterfaceInfo oldVmiInfo = oldEntry.getValue();
+            VRouterNotifier.deletePort(oldVmiInfo);
+            if (oldVmiInfo.vnInfo.getExternalIpam() == false) {
+                vncDB.deleteApiInstanceIp(oldVmiInfo);
+            }
+            vncDB.deleteApiVmi(oldVmiInfo);
+        }
+        
+        while (iter1.hasNext()) {
+            Entry<String, VmwareVirtualMachineInterfaceInfo> entry = iter1.next();
+            VmwareVirtualMachineInterfaceInfo vmiInfo = entry.getValue();
+            
+            vncDB.createOrUpdateApiVmi(vmiInfo);
+            if (vmiInfo.vnInfo.getExternalIpam() == false) {
+                vncDB.createOrUpdateApiInstanceIp(vmiInfo);
+            }
+            VRouterNotifier.addPort(entry.getValue());
+        }
+        
+        // vmInfo will not become current
+        vcenterDB.updateVM(vmInfo);
     }
 
     private void handleVmDeleteEvent() throws IOException {
@@ -165,7 +212,7 @@ public class VCenterEventHandler implements Runnable {
         
         vncDB.deleteVmApiObjects(vmInfo);
         
-        vcenterDB.deleteVM(vcenterEvent);
+        vcenterDB.deleteVM(vmInfo);
     }
 
     private void handleNetworkCreateEvent() throws IOException {
@@ -173,17 +220,22 @@ public class VCenterEventHandler implements Runnable {
     }
 
     private void handleNetworkUpdateEvent() throws IOException {
-        vcenterDB.updateVN(vcenterEvent);
-        if (!vcenterEvent.changed) {
+        VmwareVirtualNetworkInfo oldVnInfo = vcenterDB.getVnByName(vcenterEvent.vnInfo.getName());
+        if (vcenterEvent.vnInfo.equals(oldVnInfo)) {
+            // nothing changed
             return;
         }
+
         vncDB.createOrUpdateVnApiObjects(vcenterEvent.vnInfo);
+        vcenterDB.updateVN(vcenterEvent.vnInfo);
+        
+        //TODO what kind of network updates need to be send to the vrouter?
     }
 
     private void handleNetworkDeleteEvent() throws IOException {
         vncDB.deleteVnApiObjects(vcenterEvent.vnInfo);
         
-        vcenterDB.deleteVN(vcenterEvent);
+        vcenterDB.deleteVN(vcenterEvent.vnInfo);
     }
 
     private void handleEvent(Event event) throws IOException {

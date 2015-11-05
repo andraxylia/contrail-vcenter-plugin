@@ -184,6 +184,10 @@ public class VmwareVirtualMachineInfo {
     }
 
     public boolean equalVmi(VmwareVirtualMachineInfo vm) {
+        if (vm == null) {
+            return false;
+        }
+        
         if (vmiInfo.size() != vm.vmiInfo.size()) {
             return false;
         }
@@ -206,5 +210,17 @@ public class VmwareVirtualMachineInfo {
 
     public String toString() {
         return "VM <" + name + ", host " + hostName + ", " + uuid + ">";
+    }
+    
+    public StringBuffer toStringBuffer() {
+        StringBuffer s = new StringBuffer(
+                "VM <" + name + ", host " + hostName + ", " + uuid + ">\n");
+        Iterator<Entry<String, VmwareVirtualMachineInterfaceInfo>> iter =
+                vmiInfo.entrySet().iterator();
+        while (iter.hasNext()) {
+            Entry<String, VmwareVirtualMachineInterfaceInfo> entry = iter.next();
+            s.append(entry.getValue().toString());
+        }
+        return s;
     }
 }

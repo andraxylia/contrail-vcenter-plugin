@@ -6,43 +6,13 @@
 
 package net.juniper.contrail.vcenter;
 
-import java.net.Inet4Address;
-import java.net.InetAddress;
-import java.rmi.RemoteException;
-import java.util.HashMap;
-import java.util.Hashtable;
-import java.util.SortedMap;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
-import com.vmware.vim25.DVPortSetting;
-import com.vmware.vim25.DistributedVirtualSwitchKeyedOpaqueBlob;
 import com.vmware.vim25.Event;
-import com.vmware.vim25.GuestInfo;
-import com.vmware.vim25.GuestNicInfo;
-import com.vmware.vim25.IpPool;
-import com.vmware.vim25.IpPoolIpPoolConfigInfo;
-import com.vmware.vim25.ManagedObjectReference;
-import com.vmware.vim25.NetIpConfigInfo;
-import com.vmware.vim25.NetIpConfigInfoIpAddress;
-import com.vmware.vim25.VMwareDVSConfigInfo;
-import com.vmware.vim25.VMwareDVSPvlanMapEntry;
-import com.vmware.vim25.VirtualMachinePowerState;
-import com.vmware.vim25.VirtualMachineRuntimeInfo;
-import com.vmware.vim25.VmDasBeingResetEventReasonCode;
 import com.vmware.vim25.mo.Datacenter;
-import com.vmware.vim25.mo.Datastore;
 import com.vmware.vim25.mo.VirtualMachine;
 import com.vmware.vim25.mo.VmwareDistributedVirtualSwitch;
-import com.vmware.vim25.mo.util.PropertyCollectorUtil;
-import com.vmware.vim25.mo.DistributedVirtualPortgroup;
-import com.vmware.vim25.mo.Folder;
 import com.vmware.vim25.mo.Network;
 import com.vmware.vim25.mo.HostSystem;
-import com.vmware.vim25.mo.InventoryNavigator;
-import com.vmware.vim25.mo.IpPoolManager;
-import com.vmware.vim25.mo.ManagedObject;
 
 public class EventData {
     VCenterDB vcenterDB;
@@ -55,12 +25,8 @@ public class EventData {
     com.vmware.vim25.Event event;
     com.vmware.vim25.mo.Datacenter dc;
     String dcName;
-    com.vmware.vim25.mo.Datastore ds;
-    String dsName;
     com.vmware.vim25.mo.VmwareDistributedVirtualSwitch dvs;
     String dvsName;
-    com.vmware.vim25.mo.DistributedVirtualPortgroup dpg;
-    String dpgName;
     com.vmware.vim25.mo.Network nw;
     String nwName;
     com.vmware.vim25.mo.HostSystem host;
@@ -100,10 +66,6 @@ public class EventData {
         if (event.getNet() != null) {
             nwName = event.getNet().getName();
             nw = vcenterDB.getVmwareNetwork(nwName, dvs, dvsName, dcName);
-
-            dpgName = event.getNet().getName();
-            dpg = vcenterDB.getVmwareDpg(dpgName, dvs, dvsName, dcName);
-
             vnInfo = vcenterDB.createVnInfo(this);
         }
 
