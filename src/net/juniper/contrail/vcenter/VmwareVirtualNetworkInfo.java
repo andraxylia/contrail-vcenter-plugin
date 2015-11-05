@@ -172,4 +172,10 @@ public class VmwareVirtualNetworkInfo {
         }
         return true;
     }
+    
+    public String toString() {
+        return "VN <"
+                + name
+                + ", " + uuid + ">";
+    }
 }

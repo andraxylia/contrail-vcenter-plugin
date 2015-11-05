@@ -27,6 +27,7 @@ import com.vmware.vim25.VirtualMachineToolsRunningStatus;
 import org.apache.log4j.Logger;
 import com.vmware.vim25.DVPortSetting;
 import com.vmware.vim25.DVPortgroupConfigInfo;
+import com.vmware.vim25.DVSConfigInfo;
 import com.vmware.vim25.GuestInfo;
 import com.vmware.vim25.GuestNicInfo;
 import com.vmware.vim25.IpPool;
@@ -77,11 +78,11 @@ public class VCenterDB {
     private final String contrailIpFabricPgName;
     
     static volatile ServiceInstance serviceInstance;
-    private Folder rootFolder;
-    private InventoryNavigator inventoryNavigator;
-    private IpPoolManager ipPoolManager;
-    protected Datacenter contrailDC;
-    protected VmwareDistributedVirtualSwitch contrailDVS;
+    private volatile Folder rootFolder;
+    private volatile InventoryNavigator inventoryNavigator;
+    private volatile IpPoolManager ipPoolManager;
+    protected volatile Datacenter contrailDC;
+    protected volatile VmwareDistributedVirtualSwitch contrailDVS;
     private volatile SortedMap<String, VmwareVirtualNetworkInfo> prevVmwareVNInfos;
     private volatile SortedMap<String, VmwareVirtualNetworkInfo> vmwareVNs;
     private volatile SortedMap<String, VmwareVirtualMachineInfo> vmwareVMs;
@@ -1404,8 +1405,6 @@ public class VCenterDB {
         }
         VmwareVirtualNetworkInfo oldVnInfo = vmwareVNs.get(uuid);
         event.changed = !vnInfo.equals(oldVnInfo);
-        // do we ever need to update vrouter when netw changes?
-        //event.updateVrouterNeeded = vnInfo.updateVrouterNeeded(oldVnInfo);
         vmwareVNs.put(uuid, vnInfo);
     }
 
@@ -1518,7 +1517,8 @@ public class VCenterDB {
                 + ", dvs " + dvsName + ", datacenter " + dcName
                 + ", vCenter " + vcenterUrl + ">.";
 
-        InventoryNavigator inventoryNavigator = new InventoryNavigator(dvs);
+        // funny but search on the dvs does not work, we need to use rootFolder
+        InventoryNavigator inventoryNavigator = new InventoryNavigator(rootFolder);
 
         Network nw = null;
         try {
@@ -1546,6 +1546,7 @@ public class VCenterDB {
         String description = "<dpg " + name + ", dvs " + dvsName
                 + ", datacenter " + dcName + ", vCenter " + vcenterUrl + ">.";
 
+        // funny but search on the dvs does not work, we need to use rootFolder
         InventoryNavigator inventoryNavigator = new InventoryNavigator(rootFolder);
 
         DistributedVirtualPortgroup dpg = null;
@@ -1787,6 +1788,7 @@ public class VCenterDB {
         String dvsName = event.dvsName; 
         Datacenter dc = event.dc;
         String dcName = event.dcName;
+        DistributedVirtualPortgroup dpg = event.dpg;
         
         if (name == null || dvs == null || dvsName == null
                 || dc == null || dcName == null) {
@@ -1801,21 +1803,23 @@ public class VCenterDB {
         }
     
         // Extract private vlan entries for the virtual switch
-        VMwareDVSConfigInfo dvsConfigInfo = (VMwareDVSConfigInfo) dvs.getConfig();
-        if (dvsConfigInfo == null) {
+        DVSConfigInfo dvsConf = dvs.getConfig();
+        
+        if (dvsConf == null) {
             s_logger.error("dvSwitch: " + dvsName +
                     " Datacenter: " + dcName + " ConfigInfo " +
                     "is empty");
             return null;
         }
     
-        if (!(dvsConfigInfo instanceof VMwareDVSConfigInfo)) {
+        if (!(dvsConf instanceof VMwareDVSConfigInfo)) {
             s_logger.error("dvSwitch: " + dvsName +
                     " Datacenter: " + dcName + " ConfigInfo " +
                     "isn't instanceof VMwareDVSConfigInfo");
             return null;
         }
-    
+        VMwareDVSConfigInfo dvsConfigInfo = (VMwareDVSConfigInfo) dvsConf;
+        
         VMwareDVSPvlanMapEntry[] pvlanMapArray = dvsConfigInfo.getPvlanConfig();
         if (pvlanMapArray == null) {
             s_logger.error("dvSwitch: " + dvsName +
@@ -1824,9 +1828,6 @@ public class VCenterDB {
             return null;
         }
     
-        DistributedVirtualPortgroup dpg = null;
-        dpg = getVmwareDpg(name, dvs, dvsName, dcName);
-        
         ManagedObject mo[] = new ManagedObject[1];
         mo[0] = dpg;
         
@@ -1865,16 +1866,6 @@ public class VCenterDB {
         vnInfo.setName(vnName);
         vnInfo.setDpg(dpg);
         
-        // Find associated IP Pool
-        Integer poolId     = (Integer) prop.get("summary.ipPoolId");
-        IpPool ipPool = getIpPool(dpg, vnName, ipPools, poolId);
-        if (ipPool == null) {
-            s_logger.debug("no ip pool is associated to dvPg: " + vnName);
-            return null;
-        }
-
-        IpPoolIpPoolConfigInfo ipConfigInfo = ipPool.getIpv4Config();
-
         // get pvlan/vlan info for the portgroup.
         HashMap<String, Short> vlan = getVlanInfo(dpg, portSetting, pvlanMapArray);
         if (vlan == null) {
@@ -1885,13 +1876,24 @@ public class VCenterDB {
 
         vnInfo.setPrimaryVlanId(vlan.get("primary-vlan"));
         vnInfo.setIsolatedVlanId(vlan.get("secondary-vlan"));
-
-        // ifconfig setting
-        vnInfo.setSubnetAddress(ipConfigInfo.getSubnetAddress());
-        vnInfo.setSubnetMask(ipConfigInfo.getNetmask());
-        vnInfo.setGatewayAddress(ipConfigInfo.getGateway());
-        vnInfo.setIpPoolEnabled(ipConfigInfo.getIpPoolEnabled());
-        vnInfo.setRange(ipConfigInfo.getRange());
+        
+        // Find associated IP Pool
+        Integer poolId     = (Integer) prop.get("summary.ipPoolId");
+        IpPool ipPool = getIpPool(dpg, vnName, ipPools, poolId);
+        if (ipPool == null) {
+            s_logger.debug("no ip pool is associated to dvPg: " + vnName);
+            //TODO need to handle this separately
+            //return null;
+        } else {
+            IpPoolIpPoolConfigInfo ipConfigInfo = ipPool.getIpv4Config();
+    
+            // ifconfig setting
+            vnInfo.setSubnetAddress(ipConfigInfo.getSubnetAddress());
+            vnInfo.setSubnetMask(ipConfigInfo.getNetmask());
+            vnInfo.setGatewayAddress(ipConfigInfo.getGateway());
+            vnInfo.setIpPoolEnabled(ipConfigInfo.getIpPoolEnabled());
+            vnInfo.setRange(ipConfigInfo.getRange());
+        }
 
         // Read externalIpam flag from custom field
         DistributedVirtualSwitchKeyedOpaqueBlob[] opaqueBlobs = null;

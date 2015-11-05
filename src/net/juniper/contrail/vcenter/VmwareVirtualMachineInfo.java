@@ -205,6 +205,6 @@ public class VmwareVirtualMachineInfo {
     }
 
     public String toString() {
-        return "VM <name " + name + ", host " + hostName + ", UUID " + uuid + ">";
+        return "VM <" + name + ", host " + hostName + ", " + uuid + ">";
     }
 }

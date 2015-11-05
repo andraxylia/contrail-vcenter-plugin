@@ -420,21 +420,6 @@ public class VCenterNotify implements Runnable
                         e.printStackTrace();
                     }
 
-                } else if (value instanceof DVPortgroupCreatedEvent) {
-                    printDvsPortgroupEvent(value);
-                } else if (value instanceof DVPortgroupDestroyedEvent) {
-                    printDvsPortgroupEvent(value);
-                    try {
-                        monitorTask.syncVmwareVirtualNetworks();
-                    } catch (Exception e) {
-                        String stackTrace = Throwables.getStackTraceAsString(e);
-                        s_logger.error("Error while syncVmwareVirtualNetworks: " + e);
-                        s_logger.error(stackTrace);
-                        e.printStackTrace();
-                    }
-
-                } else if (value instanceof DVPortgroupReconfiguredEvent) {
-                    printDvsPortgroupEvent(value);
                 } else if (value instanceof DvsEvent) {
                     DvsEvent anEvent = (DvsEvent) value;
                     s_logger.info("\n----------" + "\n Event ID: "

@@ -1334,9 +1334,32 @@ public class VncDB {
          }
     }
 
-    public void createOrUpdateVnApiObjects(EventData event)
+    public void deleteVmApiObjects(VmwareVirtualMachineInfo vmInfo)
+            throws IOException {    
+         // loop through all the networks in which
+         // this VM participates and delete VMIs and IP Instances
+         for (Map.Entry<String, VmwareVirtualMachineInterfaceInfo> entry: 
+                 vmInfo.getVmiInfo().entrySet()) {
+             VmwareVirtualMachineInterfaceInfo vmiInfo = entry.getValue();
+             VmwareVirtualNetworkInfo vnInfo = vmiInfo.getVnInfo();
+             
+             if (vnInfo.getExternalIpam() == false) {
+                 deleteApiInstanceIp(vmiInfo);
+             }
+             deleteApiVmi(vmiInfo);
+         }
+         
+         deleteApiVm(vmInfo);
+    }
+
+    public void createOrUpdateVnApiObjects(VmwareVirtualNetworkInfo vnInfo)
             throws IOException {
-        createOrUpdateApiVn(event.vnInfo);
+        createOrUpdateApiVn(vnInfo);
+    }
+
+    public void deleteVnApiObjects(VmwareVirtualNetworkInfo vnInfo)
+            throws IOException {
+        deleteApiVn(vnInfo);
     }
 
     public void createOrUpdateApiVn(VmwareVirtualNetworkInfo vnInfo)
@@ -1421,6 +1444,18 @@ public class VncDB {
          vnInfo.apiVn = vn;
     }
 
+    public void deleteApiVn(VmwareVirtualNetworkInfo vnInfo)
+            throws IOException {
+        if (vnInfo == null || vnInfo.apiVn == null) {
+            s_logger.error("Cannot delete API VN: null arguments");
+            throw new IllegalArgumentException("Null arguments");
+        }
+
+        apiConnector.delete(vnInfo.apiVn);
+        vnInfo.apiVn = null;
+        s_logger.info("Deleted " + vnInfo.apiVn);
+    }
+
     public void createOrUpdateApiVm(VmwareVirtualMachineInfo vmInfo)
             throws IOException {
         if (vmInfo == null) {
@@ -1465,11 +1500,25 @@ public class VncDB {
          vmInfo.apiVm = vm;
     }
 
+    public void deleteApiVm(VmwareVirtualMachineInfo vmInfo)
+            throws IOException {
+        if (vmInfo == null || vmInfo.apiVm == null) {
+            s_logger.error("Cannot delete VM: null arguments");
+            throw new IllegalArgumentException("Null arguments");
+        }
+
+        apiConnector.delete(vmInfo.apiVm);
+        vmInfo.apiVm = null;
+        s_logger.info("Deleted " + vmInfo.apiVm);
+    }
+
     public void createOrUpdateApiVmi(VmwareVirtualMachineInterfaceInfo vmiInfo)
             throws IOException {
         VmwareVirtualMachineInfo vmInfo = vmiInfo.vmInfo;
         VirtualMachine vm = vmInfo.apiVm;
         VirtualNetwork network = vmiInfo.vnInfo.apiVn;
+        String descr = "VMI <" + vmiInfo.vnInfo.getName() + ", "
+                + vmInfo.getName() + ">";
         
         // find VMI matching vmUuid & vnUuid
         List<ObjectReference<ApiPropertyBase>> vmInterfaceRefs =
@@ -1512,8 +1561,19 @@ public class VncDB {
         apiConnector.create(vmInterface);
         apiConnector.read(vmInterface);
         vmiInfo.apiVmi = vmInterface;
-        s_logger.debug("Created virtual machine interface:" + vmInterfaceName
+        s_logger.debug("Created " + descr + " virtual machine interface:" + vmInterfaceName
                 + ", vmiUuid:" + vmiInfo.getUuid());
+    }
+
+    public void deleteApiVmi(VmwareVirtualMachineInterfaceInfo vmiInfo)
+            throws IOException {
+        if (vmiInfo == null || vmiInfo.apiVmi == null) {
+            s_logger.error("Cannot delete VMI: null argument");
+            throw new IllegalArgumentException("Null arguments");
+        }
+        apiConnector.delete(vmiInfo.apiVmi);
+        vmiInfo.apiVmi = null;
+        s_logger.info("Deleted " + vmiInfo.apiVmi);
     }
 
     public void createOrUpdateApiInstanceIp(
@@ -1540,5 +1600,19 @@ public class VncDB {
         vmiInfo.setIpAddress(instanceIp.getAddress());
         s_logger.debug("Created instanceIP:" + instanceIp.getName() + ": " +
                 vmIpAddress);
+    }
+
+    public void deleteApiInstanceIp(
+            VmwareVirtualMachineInterfaceInfo vmiInfo)
+            throws IOException {
+        
+        if (vmiInfo == null || vmiInfo.apiInstanceIp == null) {
+            s_logger.info("Cannot delete Instance IP null object ");
+            return;
+        }
+
+        apiConnector.delete(vmiInfo.apiInstanceIp);
+        vmiInfo.apiInstanceIp = null;
+        s_logger.info("Deleted " + vmiInfo.apiInstanceIp);
     }
 }

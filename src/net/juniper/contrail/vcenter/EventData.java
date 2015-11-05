@@ -67,7 +67,6 @@ public class EventData {
     String hostName;
     com.vmware.vim25.mo.VirtualMachine vm; //this is the vmwareVM
     String vmName;
-    com.vmware.vim25.mo.IpPoolManager ipPoolManager;
 
     // Cached objects
     VmwareVirtualNetworkInfo vnInfo; //this is our cached VN, names are messed up
@@ -84,8 +83,6 @@ public class EventData {
         this.event = event;
         this.vcenterDB = vcenterDB;
         this.vncDB = vncDB;
-
-        ipPoolManager = vcenterDB.getIpPoolManager();
 
         if (event.getDatacenter() != null) {
             dcName = event.getDatacenter().getName();

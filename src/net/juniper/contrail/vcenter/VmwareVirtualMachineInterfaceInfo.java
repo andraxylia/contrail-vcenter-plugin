@@ -81,6 +81,7 @@ public class VmwareVirtualMachineInterfaceInfo {
     }
 
     public String toString() {
-        return "VMI <VM " + vmInfo.getName() + ", VN " + vnInfo.getName() + ">";
+        return "VMI <VM " + vmInfo.getName() + ", VN " + vnInfo.getName() 
+            + ", " + uuid + ">";
     }
 }
