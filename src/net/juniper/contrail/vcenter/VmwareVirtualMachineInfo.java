@@ -1,11 +1,23 @@
 package net.juniper.contrail.vcenter;
 
 import com.vmware.vim25.VirtualMachinePowerState;
+import com.vmware.vim25.VirtualMachineRuntimeInfo;
+import com.vmware.vim25.VirtualMachineToolsRunningStatus;
+import com.vmware.vim25.mo.HostSystem;
+import com.vmware.vim25.mo.Network;
+
+import java.rmi.RemoteException;
+import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Map.Entry;
 import java.util.SortedMap;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentSkipListMap;
+import com.vmware.vim25.Event;
+import com.vmware.vim25.GuestNicInfo;
+import com.vmware.vim25.InvalidProperty;
 import com.vmware.vim25.ManagedObjectReference;
+import com.vmware.vim25.RuntimeFault;
 import net.juniper.contrail.api.types.VirtualMachine;
 
 public class VmwareVirtualMachineInfo {
@@ -18,7 +30,15 @@ public class VmwareVirtualMachineInfo {
     private String name;
     private String interfaceUuid;
     private VirtualMachinePowerState powerState;
-    private SortedMap<String, VmwareVirtualMachineInterfaceInfo> vmiInfo;
+    private SortedMap<String, VmwareVirtualMachineInterfaceInfo> vmiInfoMap;
+    
+    // Vmware objects
+    com.vmware.vim25.mo.VirtualMachine vm;
+    com.vmware.vim25.mo.HostSystem host;
+    com.vmware.vim25.mo.VmwareDistributedVirtualSwitch dvs;
+    String dvsName;
+    com.vmware.vim25.mo.Datacenter dc;
+    String dcName; 
     
     //API server objects
     net.juniper.contrail.api.types.VirtualMachine apiVm;
@@ -34,14 +54,108 @@ public class VmwareVirtualMachineInfo {
         this.powerState       = powerState;
         this.hmor             = hmor;
 
-        vmiInfo = new ConcurrentSkipListMap<String, VmwareVirtualMachineInterfaceInfo>();
+        vmiInfoMap = new ConcurrentSkipListMap<String, VmwareVirtualMachineInterfaceInfo>();
     }
 
     public VmwareVirtualMachineInfo(String uuid) {
         this.uuid = uuid;
-        vmiInfo = new ConcurrentSkipListMap<String, VmwareVirtualMachineInterfaceInfo>();
+        vmiInfoMap = new ConcurrentSkipListMap<String, VmwareVirtualMachineInterfaceInfo>();
     }
 
+    public VmwareVirtualMachineInfo(Event event,  VCenterDB vcenterDB) throws Exception {
+        if (event.getDatacenter() != null) {
+            dcName = event.getDatacenter().getName();
+            dc = vcenterDB.getVmwareDatacenter(dcName);
+        }
+
+        if (event.getDvs() != null) {
+            dvsName = event.getDvs().getName();
+            dvs = vcenterDB.getVmwareDvs(dvsName, dc, dcName);
+        } else {
+            dvsName = vcenterDB.contrailDvSwitchName;
+            dvs = vcenterDB.getVmwareDvs(dvsName, dc, dcName);
+        }
+
+        if (event.getHost() != null) {
+            hostName = event.getHost().getName();
+            host = vcenterDB.getVmwareHost(hostName, dc, dcName);
+
+            if (event.getVm() != null) {
+                name = event.getVm().getName();
+  
+                vm = vcenterDB.getVmwareVirtualMachine(name, host, hostName, dcName);
+             }
+        }
+        
+        vrouterIpAddress = vcenterDB.getVRouterVMIpFabricAddress(
+                VCenterDB.contrailVRouterVmNamePrefix,
+                host, hostName);
+        
+        
+        uuid = vm.getConfig().getInstanceUuid();
+        
+
+        VirtualMachineRuntimeInfo vmRuntimeInfo = vm.getRuntime();
+        powerState = vmRuntimeInfo.getPowerState();
+
+        vmiInfoMap = new ConcurrentSkipListMap<String, VmwareVirtualMachineInterfaceInfo>();
+        populateVmiInfoMap(vcenterDB);
+
+    }
+
+    public VmwareVirtualMachineInfo(VCenterDB vcenterDB,
+            com.vmware.vim25.mo.Datacenter dc, String dcName,
+            com.vmware.vim25.mo.VirtualMachine vm, Hashtable pTable) 
+                    throws Exception {
+        
+
+        if (vcenterDB == null || dc == null || dcName == null
+                || vm == null || pTable == null) {
+            throw new IllegalArgumentException();
+        }
+        
+        this.dc = dc;
+        this.dcName = dcName;
+        this.vm = vm;
+        
+        // Name
+        name = (String) pTable.get("name");
+
+        ManagedObjectReference hostHmor = (ManagedObjectReference) pTable.get("runtime.host");
+        host = new HostSystem(
+            vm.getServerConnection(), hostHmor);
+        hostName = host.getName();
+
+        vmiInfoMap = new ConcurrentSkipListMap<String, VmwareVirtualMachineInterfaceInfo>();
+        populateVmiInfoMap(vcenterDB);
+    }
+    
+    private void populateVmiInfoMap(VCenterDB vcenterDB) throws Exception {
+        Network[] nets = vm.getNetworks();
+        
+        for (Network net: nets) {
+            String netName = net.getName();
+            VmwareVirtualNetworkInfo vnInfo = vcenterDB.getVnByName(netName);
+            if (vnInfo == null) {
+                continue;
+            }
+   
+            String vmiUuid = UUID.randomUUID().toString();
+            VmwareVirtualMachineInterfaceInfo vmiInfo = 
+                    new VmwareVirtualMachineInterfaceInfo(vmiUuid);
+            vmiInfo.setVmInfo(this);
+            vmiInfo.setVnInfo(vnInfo);
+            
+            // Extract MAC address
+            macAddress = VCenterDB.getVirtualMachineMacAddress(vm.getConfig(), vnInfo.getDpg());
+            vmiInfo.setMacAddress(macAddress);
+            ipAddress = vcenterDB.getVirtualMachineIpAddress(vm, vnInfo.getName());
+            vmiInfo.setIpAddress(ipAddress);
+            
+            vmiInfoMap.put(vmiInfo.getUuid(), vmiInfo);
+        }
+    }
+    
     public String getHostName() {
         return hostName;
     }
@@ -128,11 +242,11 @@ public class VmwareVirtualMachineInfo {
     }
 
     public SortedMap<String, VmwareVirtualMachineInterfaceInfo> getVmiInfo() {
-        return vmiInfo;
+        return vmiInfoMap;
     }
 
-    public void setVmiInfo(SortedMap<String, VmwareVirtualMachineInterfaceInfo> vmiInfo) {
-        this.vmiInfo = vmiInfo;
+    public void setVmiInfo(SortedMap<String, VmwareVirtualMachineInterfaceInfo> vmiInfoMap) {
+        this.vmiInfoMap = vmiInfoMap;
     }
 
     public boolean updateVrouterNeeded(VmwareVirtualMachineInfo vm) {
@@ -188,14 +302,14 @@ public class VmwareVirtualMachineInfo {
             return false;
         }
         
-        if (vmiInfo.size() != vm.vmiInfo.size()) {
+        if (vmiInfoMap.size() != vm.vmiInfoMap.size()) {
             return false;
         }
         
         Iterator<Entry<String, VmwareVirtualMachineInterfaceInfo>> iter1 =
-                vmiInfo.entrySet().iterator();
+                vmiInfoMap.entrySet().iterator();
         Iterator<Entry<String, VmwareVirtualMachineInterfaceInfo>> iter2 =
-                vm.vmiInfo.entrySet().iterator();
+                vm.vmiInfoMap.entrySet().iterator();
         while (iter1.hasNext() && iter2.hasNext()) {
             Entry<String, VmwareVirtualMachineInterfaceInfo> entry1 = iter1.next();
             Entry<String, VmwareVirtualMachineInterfaceInfo> entry2 = iter2.next();
@@ -216,11 +330,19 @@ public class VmwareVirtualMachineInfo {
         StringBuffer s = new StringBuffer(
                 "VM <" + name + ", host " + hostName + ", " + uuid + ">\n");
         Iterator<Entry<String, VmwareVirtualMachineInterfaceInfo>> iter =
-                vmiInfo.entrySet().iterator();
+                vmiInfoMap.entrySet().iterator();
         while (iter.hasNext()) {
             Entry<String, VmwareVirtualMachineInterfaceInfo> entry = iter.next();
             s.append(entry.getValue().toString());
         }
         return s;
+    }
+    
+    boolean ignore() {
+        if (vrouterIpAddress == null) {
+            return true;
+        }
+        
+        return false;
     }
 }

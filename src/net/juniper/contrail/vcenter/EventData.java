@@ -17,9 +17,7 @@ import com.vmware.vim25.mo.HostSystem;
 public class EventData {
     VCenterDB vcenterDB;
     VncDB vncDB;
-    boolean changed;
-    boolean updateVrouterNeeded;
-
+    
     //VCenter objects
     // using fully qualified name because of collisions
     com.vmware.vim25.Event event;
@@ -66,23 +64,16 @@ public class EventData {
         if (event.getNet() != null) {
             nwName = event.getNet().getName();
             nw = vcenterDB.getVmwareNetwork(nwName, dvs, dvsName, dcName);
-            vnInfo = vcenterDB.createVnInfo(this);
         }
 
         if (event.getHost() != null) {
             hostName = event.getHost().getName();
             host = vcenterDB.getVmwareHost(hostName, dc, dcName);
 
-            vrouterIpAddress = vcenterDB.getVRouterVMIpFabricAddress(
-                    VCenterDB.contrailVRouterVmNamePrefix,
-                    host, hostName);
-
             if (event.getVm() != null) {
                 vmName = event.getVm().getName();
   
                 vm = vcenterDB.getVmwareVirtualMachine(vmName, host, hostName, dcName);
-
-                vmInfo = vcenterDB.createVmInfo(this);              
              }
         }
     }

@@ -57,6 +57,7 @@ import com.vmware.vim25.mo.Folder;
 import com.vmware.vim25.mo.HostSystem;
 import com.vmware.vim25.mo.InventoryNavigator;
 import com.vmware.vim25.mo.IpPoolManager;
+import com.vmware.vim25.mo.ManagedEntity;
 import com.vmware.vim25.mo.ManagedObject;
 import com.vmware.vim25.mo.Network;
 import com.vmware.vim25.mo.util.PropertyCollectorUtil;
@@ -567,7 +568,7 @@ public class VCenterDB {
         return null;
     }
 
-    private String getVirtualMachineIpAddress(VirtualMachine vm, String dvPgName)
+    String getVirtualMachineIpAddress(VirtualMachine vm, String dvPgName)
                     throws Exception {
 
         // Assumption here is that VMware Tools are installed
@@ -1709,195 +1710,7 @@ public class VCenterDB {
         }
         return null;
     }
-    
-    VmwareVirtualMachineInfo createVmInfo(EventData event) 
-        throws RemoteException {    
-        VirtualMachine vm = event.vm;
-        String vmName = event.vmName;
-        String hostName = event.hostName;
-        String vrouterIpAddress = event.vrouterIpAddress;
-        VmwareDistributedVirtualSwitch dvs = event.dvs;
-        String dvsName = event.dvsName; 
-        Datacenter dc = event.dc;
-        String dcName = event.dcName;
-        
-        if (vm == null || vmName == null || hostName == null
-                || vrouterIpAddress == null || dvs == null
-                || dvsName == null || dc == null || dcName == null) {
-            s_logger.error("Null arguments");
-            throw new IllegalArgumentException();
-        }
-
-        VmwareVirtualMachineInfo vmInfo = new VmwareVirtualMachineInfo(vm.getConfig().getInstanceUuid());
-        vmInfo.setName(vmName);
-        vmInfo.setHostName(hostName);
-        vmInfo.setVrouterIpAddress(vrouterIpAddress);
-
-        // Is it powered on?
-        VirtualMachineRuntimeInfo vmRuntimeInfo = vm.getRuntime();
-        vmInfo.setPowerState(vmRuntimeInfo.getPowerState());
-
-        Network[] nets = vm.getNetworks();
-        SortedMap<String, VmwareVirtualMachineInterfaceInfo> vmiInfoMap =
-                vmInfo.getVmiInfo();
-
-        for (Network net: nets) {
-            event.nwName = net.getName();
-            VmwareVirtualNetworkInfo vnInfo = getVnByName(event.nwName);
-            if (vnInfo == null) {
-                vnInfo = createVnInfo(event);
-            }
-            if (vnInfo == null) {
-                // log error
-                continue;
-            }
-
-            String vmiUuid = UUID.randomUUID().toString();
-            VmwareVirtualMachineInterfaceInfo vmiInfo = 
-                    new VmwareVirtualMachineInterfaceInfo(vmiUuid);
-            vmiInfo.setVmInfo(vmInfo);
-            vmiInfo.setVnInfo(vnInfo);
-            
-            // Extract MAC address
-            String vmMac = getVirtualMachineMacAddress(vm.getConfig(), vnInfo.getDpg());
-            if (vmMac == null) {
-                s_logger.error("dvPg: " + vnInfo.getName() + " vm: " +
-                        vmName + " MAC Address NOT found");
-                return null;
-            }
-            vmiInfo.setMacAddress(vmMac);
-
-            vmiInfoMap.put(vmiInfo.getUuid(), vmiInfo);
-        }
-
-        return vmInfo;
-    }
-
-    public VmwareVirtualNetworkInfo createVnInfo(EventData event) 
-            throws RemoteException {
-        String name = event.nwName;
-        VmwareDistributedVirtualSwitch dvs = event.dvs;
-        String dvsName = event.dvsName; 
-        Datacenter dc = event.dc;
-        String dcName = event.dcName;
-        
-        if (name == null || dvs == null || dvsName == null
-                || dc == null || dcName == null) {
-            throw new IllegalArgumentException();
-        }
-        
-        // Extract IP Pools
-        IpPool[] ipPools = ipPoolManager.queryIpPools(dc);
-        if (ipPools == null || ipPools.length == 0) {
-            s_logger.debug(" IP Pools NOT configured");
-            return null;
-        }
-    
-        // Extract private vlan entries for the virtual switch
-        DVSConfigInfo dvsConf = dvs.getConfig();
-        
-        if (dvsConf == null) {
-            s_logger.error("dvSwitch: " + dvsName +
-                    " Datacenter: " + dcName + " ConfigInfo " +
-                    "is empty");
-            return null;
-        }
-    
-        if (!(dvsConf instanceof VMwareDVSConfigInfo)) {
-            s_logger.error("dvSwitch: " + dvsName +
-                    " Datacenter: " + dcName + " ConfigInfo " +
-                    "isn't instanceof VMwareDVSConfigInfo");
-            return null;
-        }
-        VMwareDVSConfigInfo dvsConfigInfo = (VMwareDVSConfigInfo) dvsConf;
-        
-        VMwareDVSPvlanMapEntry[] pvlanMapArray = dvsConfigInfo.getPvlanConfig();
-        if (pvlanMapArray == null) {
-            s_logger.error("dvSwitch: " + dvsName +
-                    " Datacenter: " + dcName + " Private VLAN NOT" +
-                    "configured");
-            return null;
-        }
-
-        DistributedVirtualPortgroup dpg = getVmwareDpg(name, dvs, dvsName, dcName);
-        ManagedObject mo[] = new ManagedObject[1];
-        mo[0] = dpg; 
-        
-        Hashtable[] pTables = PropertyCollectorUtil.retrieveProperties(mo,
-                                "DistributedVirtualPortgroup",
-                new String[] {"name",
-                "config.key",
-                "config.defaultPortConfig",
-                "config.vendorSpecificConfig",
-                "summary.ipPoolId",
-                "summary.ipPoolName",
-                });
-    
-        if (pTables == null || pTables[0] == null) {
-            throw new RemoteException("Could not read properties for dpg " + name);
-        }
-        Hashtable prop = pTables[0];
-        
-        String vnName = (String) prop.get("name");
-        s_logger.debug("dvPg: " + vnName);
-
-        String key = (String) prop.get("config.key");
-        byte[] vnKeyBytes = key.getBytes();
-        String vnUuid = UUID.nameUUIDFromBytes(vnKeyBytes).toString();
-
-        // Extract dvPg configuration info and port setting
-        DVPortSetting portSetting = (DVPortSetting) prop.get("config.defaultPortConfig");
-
-        // Ignore network?
-        //TODO what is this doing?
-        if (doIgnoreVirtualNetwork(portSetting)) {
-            return null;
-        }
-
-        VmwareVirtualNetworkInfo vnInfo = new VmwareVirtualNetworkInfo(vnUuid);
-        vnInfo.setName(vnName);
-        vnInfo.setDpg(dpg);
-        
-        // get pvlan/vlan info for the portgroup.
-        HashMap<String, Short> vlan = getVlanInfo(dpg, portSetting, pvlanMapArray);
-        if (vlan == null) {
-            s_logger.debug("no pvlan/vlan is associated to dvPg: " + vnName);
-            return null;
-        }
-        s_logger.debug("VN name: " + vnName);
-
-        vnInfo.setPrimaryVlanId(vlan.get("primary-vlan"));
-        vnInfo.setIsolatedVlanId(vlan.get("secondary-vlan"));
-        
-        // Find associated IP Pool
-        Integer poolId     = (Integer) prop.get("summary.ipPoolId");
-        IpPool ipPool = getIpPool(dpg, vnName, ipPools, poolId);
-        if (ipPool == null) {
-            s_logger.debug("no ip pool is associated to dvPg: " + vnName);
-            //TODO need to handle this separately
-            //return null;
-        } else {
-            IpPoolIpPoolConfigInfo ipConfigInfo = ipPool.getIpv4Config();
-    
-            // ifconfig setting
-            vnInfo.setSubnetAddress(ipConfigInfo.getSubnetAddress());
-            vnInfo.setSubnetMask(ipConfigInfo.getNetmask());
-            vnInfo.setGatewayAddress(ipConfigInfo.getGateway());
-            vnInfo.setIpPoolEnabled(ipConfigInfo.getIpPoolEnabled());
-            vnInfo.setRange(ipConfigInfo.getRange());
-        }
-
-        // Read externalIpam flag from custom field
-        DistributedVirtualSwitchKeyedOpaqueBlob[] opaqueBlobs = null;
-        Object obj = prop.get("config.vendorSpecificConfig");
-        if (obj instanceof DistributedVirtualSwitchKeyedOpaqueBlob[]) {
-            opaqueBlobs = (DistributedVirtualSwitchKeyedOpaqueBlob[]) obj;
-        }
-        vnInfo.setExternalIpam(getExternalIpamInfo(opaqueBlobs, vnName));
-        
-        return vnInfo;
-    }
-    
+  
     public void printInfo() {
         s_logger.info("Andra networks:");
         for (VmwareVirtualNetworkInfo vnInfo: vmwareVNs.values()) {
@@ -1908,5 +1721,129 @@ public class VCenterDB {
         for (VmwareVirtualMachineInfo vmInfo: vmwareVMs.values()) {
             s_logger.info(vmInfo.toStringBuffer().toString());
         }
+    }
+    
+    public SortedMap<String, VmwareVirtualNetworkInfo>
+        readAllVirtualNetworks() throws Exception {
+
+        if (contrailDVS == null) {
+            s_logger.error("dvSwitch: " + contrailDvSwitchName +
+                    " NOT configured");
+            return null;
+        }
+        // Extract distributed virtual port groups
+        DistributedVirtualPortgroup[] dvPgs = contrailDVS.getPortgroup();
+        if (dvPgs == null || dvPgs.length == 0) {
+            s_logger.error("dvSwitch: " + contrailDvSwitchName +
+                    " Distributed portgroups NOT configured");
+            return null;
+        }
+        
+        // Extract IP Pools
+        IpPool[] ipPools = ipPoolManager.queryIpPools(contrailDC);
+        if (ipPools == null || ipPools.length == 0) {
+            s_logger.debug("dvSwitch: " + contrailDvSwitchName +
+                    " Datacenter: " + contrailDC.getName() + " IP Pools NOT " +
+                    "configured");
+            return null;
+        }
+    
+        // Extract private vlan entries for the virtual switch
+        VMwareDVSConfigInfo dvsConfigInfo = (VMwareDVSConfigInfo) contrailDVS.getConfig();
+        if (dvsConfigInfo == null) {
+            s_logger.error("dvSwitch: " + contrailDvSwitchName +
+                    " Datacenter: " + contrailDC.getName() + " ConfigInfo " +
+                    "is empty");
+            return null;
+        }
+    
+        if (!(dvsConfigInfo instanceof VMwareDVSConfigInfo)) {
+            s_logger.error("dvSwitch: " + contrailDvSwitchName +
+                    " Datacenter: " + contrailDC.getName() + " ConfigInfo " +
+                    "isn't instanceof VMwareDVSConfigInfo");
+            return null;
+        }
+    
+        VMwareDVSPvlanMapEntry[] pvlanMapArray = dvsConfigInfo.getPvlanConfig();
+        if (pvlanMapArray == null) {
+            s_logger.error("dvSwitch: " + contrailDvSwitchName +
+                    " Datacenter: " + contrailDC.getName() + " Private VLAN NOT" +
+                    "configured");
+            return null;
+        }
+    
+        Hashtable[] pTables = PropertyCollectorUtil.retrieveProperties(dvPgs,
+                                "DistributedVirtualPortgroup",
+                new String[] {"name",
+                "config.key",
+                "config.defaultPortConfig",
+                "config.vendorSpecificConfig",
+                "summary.ipPoolId",
+                "summary.ipPoolName",
+                });
+    
+        SortedMap<String, VmwareVirtualNetworkInfo> vnInfos = 
+                new ConcurrentSkipListMap<String, VmwareVirtualNetworkInfo>();    
+
+        for (int i=0; i < dvPgs.length; i++) {
+         // Extract dvPg configuration info and port setting
+            DVPortSetting portSetting = (DVPortSetting) pTables[i].get("config.defaultPortConfig");
+
+            if (doIgnoreVirtualNetwork(portSetting)) {
+                continue;
+            }
+            VmwareVirtualNetworkInfo vnInfo = 
+                    new VmwareVirtualNetworkInfo(
+                            this, dvPgs[i], pTables[i], contrailDC, contrailDataCenterName, 
+                            contrailDVS, contrailDvSwitchName,
+                            ipPools, pvlanMapArray);
+            
+            vnInfos.put(vnInfo.getUuid(), vnInfo);
+        }
+        return vnInfos;
+    }
+    
+    private SortedMap<String, VmwareVirtualMachineInfo> 
+        readAllVms(Datacenter dc, String dcName) throws Exception {
+
+        ManagedEntity[] vms = new InventoryNavigator(dc).searchManagedEntities("VirtualMachine"); 
+        
+        if (vms == null || vms.length == 0) {
+            s_logger.debug("Datacenter: " + dcName + 
+                    " NO virtual machines connected");
+            return null;
+        }
+    
+        Hashtable[] pTables = PropertyCollectorUtil.retrieveProperties(vms, "VirtualMachine",
+                new String[] {"name",
+                "config.instanceUuid",
+                "runtime.powerState",
+                "runtime.host",
+                "guest.toolsRunningStatus",
+                "guest.net"
+                });
+        
+        SortedMap<String, VmwareVirtualMachineInfo> vmInfoMap =
+                new ConcurrentSkipListMap<String, VmwareVirtualMachineInfo>();
+
+        for (int i=0; i < vms.length; i++) {   
+            VmwareVirtualMachineInfo vmInfo = new VmwareVirtualMachineInfo(this,
+                    dc, dcName,
+                    (VirtualMachine)vms[i], pTables[i]);
+            
+            // Ignore virtual machine?
+            if (doIgnoreVirtualMachine(vmInfo.getName())) {
+                s_logger.debug(" Ignoring vm: " + vmInfo.getName());
+                return null;
+            }
+            
+            if (vmInfo.getVmiInfo().size() == 0) {
+                // this can happen if the VM is not connected to any network
+                // By design we skip unconnected VMs
+                continue;
+            }
+            vmInfoMap.put(vmInfo.getUuid(), vmInfo);
+        }
+        return vmInfoMap;
     }
 }

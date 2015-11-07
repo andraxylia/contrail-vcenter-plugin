@@ -30,7 +30,6 @@ public class VCenterEventHandler implements Runnable {
     Event event;
     VCenterDB vcenterDB;
     VncDB vncDB;
-    EventData vcenterEvent;
 
     VCenterEventHandler(Event event, VCenterDB vcenterDB, VncDB vncDB) {
         this.event = event;
@@ -59,8 +58,6 @@ public class VCenterEventHandler implements Runnable {
         vcenterDB.printInfo();
         
         try {
-            vcenterEvent = new EventData(event, vcenterDB, vncDB);
-
             if (event instanceof VmBeingCreatedEvent
                 || event instanceof VmCreatedEvent
                 || event instanceof VmClonedEvent
@@ -103,31 +100,21 @@ public class VCenterEventHandler implements Runnable {
         //TODO as per CacheFrameworkSample
     }
 
-    private void handleVmCreateEvent() throws IOException {
-        if (vcenterEvent.vrouterIpAddress == null) {
-            /*log ("ContrailVM not found on ESXi host: "
-                    + vcenterEvent.host.getName() + ", skipping VM (" +
-                    vcenterEvent.vm.getName() + ") creation"
-                    + " on network: " + vcenterEvent.nw.getName());*/
-            return;
-        }
-
+    private void handleVmCreateEvent() throws Exception {
+        
         handleVmUpdateEvent();
         
         // add a watch on this Vm guest OS to be notified of further changes
         watchVm();
     }
 
-    private void handleVmUpdateEvent() throws IOException {
-        if (vcenterEvent.vrouterIpAddress == null) {
-            /*log ("ContrailVM not found on ESXi host: "
-                    + vcenterEvent.host.getName() + ", skipping VM (" +
-                    vcenterEvent.vm.getName() + ") creation"
-                    + " on network: " + vcenterEvent.nw.getName());*/
+    private void handleVmUpdateEvent() throws Exception {
+        VmwareVirtualMachineInfo vmInfo = new VmwareVirtualMachineInfo(event, vcenterDB);
+         
+        if (vmInfo.ignore()) {
             return;
-        }
-
-        VmwareVirtualMachineInfo vmInfo = vcenterEvent.vmInfo;
+        } 
+        
         VmwareVirtualMachineInfo oldVmInfo = vcenterDB.getVmById(vmInfo.getUuid());
        
         if (vmInfo.equals(oldVmInfo)) {
@@ -191,17 +178,13 @@ public class VCenterEventHandler implements Runnable {
         vcenterDB.updateVM(vmInfo);
     }
 
-    private void handleVmDeleteEvent() throws IOException {
-        if (vcenterEvent.vrouterIpAddress == null) {
-            /*log ("ContrailVM not found on ESXi host: "
-                    + vcenterEvent.host.getName() + ", skipping VM (" +
-                    vcenterEvent.vm.getName() + ") creation"
-                    + " on network: " + vcenterEvent.nw.getName());*/
+    private void handleVmDeleteEvent() throws Exception {
+        VmwareVirtualMachineInfo vmInfo = new VmwareVirtualMachineInfo(event, vcenterDB);
+        
+        if (vmInfo.ignore()) {
             return;
         }
-
-        VmwareVirtualMachineInfo vmInfo = vcenterEvent.vmInfo;
-        
+  
         Iterator<Entry<String, VmwareVirtualMachineInterfaceInfo>> iter =
                 vmInfo.getVmiInfo().entrySet().iterator();
         while (iter.hasNext()) {
@@ -215,27 +198,37 @@ public class VCenterEventHandler implements Runnable {
         vcenterDB.deleteVM(vmInfo);
     }
 
-    private void handleNetworkCreateEvent() throws IOException {
+    private void handleNetworkCreateEvent() throws Exception {
         handleNetworkUpdateEvent();
     }
 
-    private void handleNetworkUpdateEvent() throws IOException {
-        VmwareVirtualNetworkInfo oldVnInfo = vcenterDB.getVnByName(vcenterEvent.vnInfo.getName());
-        if (vcenterEvent.vnInfo.equals(oldVnInfo)) {
+    private void handleNetworkUpdateEvent() throws Exception {
+        VmwareVirtualNetworkInfo vnInfo = new VmwareVirtualNetworkInfo(event, vcenterDB);
+        
+        if (vnInfo.ignore()) {
+            return;
+        }
+
+        VmwareVirtualNetworkInfo oldVnInfo = vcenterDB.getVnByName(vnInfo.getName());
+        if (vnInfo.equals(oldVnInfo)) {
             // nothing changed
             return;
         }
 
-        vncDB.createOrUpdateVnApiObjects(vcenterEvent.vnInfo);
-        vcenterDB.updateVN(vcenterEvent.vnInfo);
-        
-        //TODO what kind of network updates need to be send to the vrouter?
+        vncDB.createOrUpdateVnApiObjects(vnInfo);
+        vcenterDB.updateVN(vnInfo);
     }
 
-    private void handleNetworkDeleteEvent() throws IOException {
-        vncDB.deleteVnApiObjects(vcenterEvent.vnInfo);
+    private void handleNetworkDeleteEvent() throws Exception {
+        VmwareVirtualNetworkInfo vnInfo = new VmwareVirtualNetworkInfo(event, vcenterDB);
         
-        vcenterDB.deleteVN(vcenterEvent.vnInfo);
+        if (vnInfo.ignore()) {
+            return;
+        }
+        
+        vncDB.deleteVnApiObjects(vnInfo);
+        
+        vcenterDB.deleteVN(vnInfo);
     }
 
     private void handleEvent(Event event) throws IOException {
