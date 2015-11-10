@@ -417,8 +417,8 @@ public class VCenterDB {
         return null;
     }
 
-    protected String getVRouterVMIpFabricAddress(String dvPgName,
-            String hostName, HostSystem host, String vmNamePrefix)
+    protected String getVRouterVMIpFabricAddress(String hostName,
+            HostSystem host, String vmNamePrefix)
                     throws Exception {
         // Find if vRouter Ip Fabric mapping exists..
         String vRouterIpAddress = esxiToVRouterIpMap.get(hostName);
@@ -438,14 +438,14 @@ public class VCenterDB {
             // and IP address is available
             GuestInfo guestInfo = vm.getGuest();
             if (guestInfo == null) {
-                s_logger.debug("dvPg: " + dvPgName + " host: " + hostName +
+                s_logger.debug(" Host: " + hostName +
                         " vm:" + vmName + " GuestInfo - VMware Tools " +
                         " NOT installed");
                 continue;
             }
             GuestNicInfo[] nicInfos = guestInfo.getNet();
             if (nicInfos == null) {
-                s_logger.debug("dvPg: " + dvPgName + " host: " + hostName +
+                s_logger.debug(" Host: " + hostName +
                         " vm:" + vmName + " GuestNicInfo - VMware Tools " +
                         " NOT installed");
                 continue;
@@ -462,7 +462,7 @@ public class VCenterDB {
                         inventoryNavigator.searchManagedEntity("Network",
                                 networkName);
                 if (network == null) {
-                    s_logger.debug("dvPg: " + dvPgName + "host: " +
+                    s_logger.debug("Host: " +
                             hostName + " vm: " + vmName + " network: " +
                             networkName + " NOT found");
                     continue;
@@ -686,7 +686,7 @@ public class VCenterDB {
         String hostName = host.getName();
 
         // Get Contrail VRouter virtual machine information from the host
-        String vrouterIpAddress = getVRouterVMIpFabricAddress(dvPgName,
+        String vrouterIpAddress = getVRouterVMIpFabricAddress(
                 hostName, host, contrailVRouterVmNamePrefix);
         if (vrouterIpAddress == null) {
             s_logger.error("ContrailVM not found on ESXi host: " 
@@ -1087,7 +1087,7 @@ public class VCenterDB {
             hostName = host.getName();
 
             // Get Contrail VRouter virtual machine information from the host
-            vrouterIpAddress = getVRouterVMIpFabricAddress(dvPgName,
+            vrouterIpAddress = getVRouterVMIpFabricAddress(
                     hostName, host, contrailVRouterVmNamePrefix);
             if (vrouterIpAddress == null) {
                 s_logger.error("ContrailVM not found on ESXi host: " 
@@ -1621,96 +1621,6 @@ public class VCenterDB {
 
         s_logger.info("Found " + description);
         return vm;
-    }
-
-    protected String getVRouterVMIpFabricAddress(String vmNamePrefix,
-            HostSystem host, String hostName) throws Exception {
-        // Find if vRouter Ip Fabric mapping exists..
-        String vRouterIpAddress = esxiToVRouterIpMap.get(hostName);
-
-        // this is not the best place for the next 2 lines
-        if (host.getRuntime().isInMaintenanceMode() && vRouterIpAddress != null) {
-            vRouterActiveMap.put(vRouterIpAddress, false);
-        }
-
-        if (vRouterIpAddress != null) {
-            return vRouterIpAddress;
-        }
-
-        InventoryNavigator inventoryNavigator = new InventoryNavigator(host);
-        
-        VirtualMachine[] vms = host.getVms();
-        for (VirtualMachine vm : vms) {
-            String vmName = vm.getName();
-            if (!vmName.toLowerCase().contains(vmNamePrefix.toLowerCase())) {
-                continue;
-            }
-            // XXX Assumption here is that VMware Tools are installed
-            // and IP address is available
-            GuestInfo guestInfo = vm.getGuest();
-            if (guestInfo == null) {
-                /*
-                 * s_logger.debug("dvPg: " + dvPgName + " host: " + hostName +
-                 * " vm:" + vmName + " GuestInfo - VMware Tools " +
-                 * " NOT installed");
-                 */
-                continue;
-            }
-            GuestNicInfo[] nicInfos = guestInfo.getNet();
-            if (nicInfos == null) {
-                /*
-                 * s_logger.debug("dvPg: " + dvPgName + " host: " + hostName +
-                 * " vm:" + vmName + " GuestNicInfo - VMware Tools " +
-                 * " NOT installed");
-                 */
-                continue;
-            }
-            for (GuestNicInfo nicInfo : nicInfos) {
-                // Extract the IP address associated with simple port
-                // group. Assumption here is that Contrail VRouter VM will
-                // have only one standard port group
-                String networkName = nicInfo.getNetwork();
-                if (networkName == null
-                        || !networkName.equals(contrailIpFabricPgName)) {
-                    continue;
-                }
-                Network network = (Network) inventoryNavigator.searchManagedEntity("Network", networkName);
-                if (network == null) {
-                    /*
-                     * s_logger.debug("dvPg: " + dvPgName + "host: " + hostName
-                     * + " vm: " + vmName + " network: " + networkName +
-                     * " NOT found");
-                     */
-                    continue;
-                }
-                NetIpConfigInfo ipConfigInfo = nicInfo.getIpConfig();
-                if (ipConfigInfo == null) {
-                    continue;
-                }
-                NetIpConfigInfoIpAddress[] ipAddrConfigInfos = ipConfigInfo.getIpAddress();
-                if (ipAddrConfigInfos == null || ipAddrConfigInfos.length == 0) {
-                    continue;
-
-                }
-                for (NetIpConfigInfoIpAddress ipAddrConfigInfo : ipAddrConfigInfos) {
-                    String ipAddress = ipAddrConfigInfo.getIpAddress();
-                    // Choose IPv4 only
-                    InetAddress ipAddr = InetAddress.getByName(ipAddress);
-                    if (ipAddr instanceof Inet4Address) {
-                        // found vRouter VM ip-fabric address. Store it.
-                        esxiToVRouterIpMap.put(host.getName(), ipAddress);
-
-                        // this is not the best place for the next 2 lines
-                        if (host.getRuntime().isInMaintenanceMode() && vRouterIpAddress != null) {
-                            vRouterActiveMap.put(vRouterIpAddress, false);
-                        }
-
-                        return ipAddress;
-                    }
-                }
-            }
-        }
-        return null;
     }
   
     public void printInfo() {

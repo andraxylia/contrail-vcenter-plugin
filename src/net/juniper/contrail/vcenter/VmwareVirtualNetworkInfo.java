@@ -68,12 +68,12 @@ public class VmwareVirtualNetworkInfo {
         this.ipPoolEnabled = ipPoolEnabled;
         this.range = range;
         this.externalIpam = externalIpam;
-        vmInfo = new ConcurrentSkipListMap<String, VmwareVirtualMachineInfo>();
+        this.vmInfo = vmInfo;
     }
 
     public VmwareVirtualNetworkInfo(String uuid) {
         this.uuid = uuid;
-        vmInfo = new ConcurrentSkipListMap<String, VmwareVirtualMachineInfo>();
+        this.vmInfo = new ConcurrentSkipListMap<String, VmwareVirtualMachineInfo>();
     }
 
     public VmwareVirtualNetworkInfo(Event event,  VCenterDB vcenterDB) throws Exception {
@@ -160,6 +160,8 @@ public class VmwareVirtualNetworkInfo {
             throw new IllegalArgumentException();
         }
         
+        this.dc = dc;
+        this.dcName = dcName;
         this.dpg = dpg;
         this.dvs = dvs;
         this.dvsName = dvsName;
@@ -171,6 +173,8 @@ public class VmwareVirtualNetworkInfo {
             Hashtable pTable,
             IpPool[] ipPools,
             VMwareDVSPvlanMapEntry[] pvlanMapArray) throws Exception {
+        
+        vmInfo = new ConcurrentSkipListMap<String, VmwareVirtualMachineInfo>();
         
         // Extract dvPg configuration info and port setting
         portSetting = (DVPortSetting) pTable.get("config.defaultPortConfig");

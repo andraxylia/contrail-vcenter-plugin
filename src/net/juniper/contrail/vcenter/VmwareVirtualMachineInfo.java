@@ -88,19 +88,15 @@ public class VmwareVirtualMachineInfo {
         }
         
         vrouterIpAddress = vcenterDB.getVRouterVMIpFabricAddress(
-                VCenterDB.contrailVRouterVmNamePrefix,
-                host, hostName);
-        
+                hostName, host, VCenterDB.contrailVRouterVmNamePrefix);
         
         uuid = vm.getConfig().getInstanceUuid();
-        
 
         VirtualMachineRuntimeInfo vmRuntimeInfo = vm.getRuntime();
         powerState = vmRuntimeInfo.getPowerState();
 
         vmiInfoMap = new ConcurrentSkipListMap<String, VmwareVirtualMachineInterfaceInfo>();
         populateVmiInfoMap(vcenterDB);
-
     }
 
     public VmwareVirtualMachineInfo(VCenterDB vcenterDB,
@@ -126,6 +122,9 @@ public class VmwareVirtualMachineInfo {
         host = new HostSystem(
             vm.getServerConnection(), hostHmor);
         hostName = host.getName();
+
+        vrouterIpAddress = vcenterDB.getVRouterVMIpFabricAddress(
+                hostName, host, VCenterDB.contrailVRouterVmNamePrefix);
 
         vmiInfoMap = new ConcurrentSkipListMap<String, VmwareVirtualMachineInterfaceInfo>();
         populateVmiInfoMap(vcenterDB);

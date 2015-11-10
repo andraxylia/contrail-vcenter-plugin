@@ -105,7 +105,7 @@ public class VCenterAsComputeDB extends VCenterDB {
         String hostName = host.getName();
 
         // Get Contrail VRouter virtual machine information from the host
-        String vrouterIpAddress = getVRouterVMIpFabricAddress(dvPgName,
+        String vrouterIpAddress = getVRouterVMIpFabricAddress(
                 hostName, host, contrailVRouterVmNamePrefix);
         if (vrouterIpAddress == null) {
             s_logger.error("ContrailVM not found on ESXi host: " 
@@ -295,7 +295,7 @@ public class VCenterAsComputeDB extends VCenterDB {
             hostName = host.getName();
 
             // Get Contrail VRouter virtual machine information from the host
-            vrouterIpAddress = getVRouterVMIpFabricAddress(dvPgName,
+            vrouterIpAddress = getVRouterVMIpFabricAddress(
                     hostName, host, contrailVRouterVmNamePrefix);
             if (vrouterIpAddress == null) {
                 s_logger.error("ContrailVM not found on ESXi host: " 
