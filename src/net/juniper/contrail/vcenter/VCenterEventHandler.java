@@ -124,7 +124,7 @@ public class VCenterEventHandler implements Runnable {
  
         //TODO add here special handling for vmware bug where ipaddress gets nulled
         
-        vncDB.createOrUpdateApiVm(vmInfo);
+        vncDB.createOrUpdateApiVm(vmInfo, null);
  
         boolean updateVrouterNeeded = vmInfo.updateVrouterNeeded(oldVmInfo);
                

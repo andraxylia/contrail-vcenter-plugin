@@ -220,21 +220,15 @@ public class VCenterMonitor {
               System.out.println(e);
             }
         }*/
-        
-        _vncDB = new VncDB(_apiServerAddress, _apiServerPort);
-        while (_vncDB.Initialize() != true) {
-            Thread.sleep(2);
-        }
+                
         _vcenterDB = new VCenterDB(_vcenterURL, _vcenterUsername, _vcenterPassword,
-                _vcenterDcName, _vcenterDvsName, _vcenterIpFabricPg);
+                _vcenterDcName, _vcenterDvsName, _vcenterIpFabricPg, _mode);
+
+        _vcenterDB.init();
         
-        while (_vcenterDB.Initialize() != true) {
-            Thread.sleep(2);
-        }
-        while (_vcenterDB.Initialize_data() != true) {
-            Thread.sleep(2);
-        }
- 
+        _vncDB = new VncDB(_apiServerAddress, _apiServerPort, _mode);
+        _vncDB.init(_vcenterDB.vmwareVNs, _vcenterDB.vmwareVMs);
+        
         s_logger.info("Starting event monitor Task.. ");
         _eventMonitor = new VCenterNotify(null, _vcenterDB, _vncDB, _vcenterURL,
                                           _vcenterUsername, _vcenterPassword,

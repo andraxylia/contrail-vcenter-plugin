@@ -119,6 +119,7 @@ public class VmwareVirtualMachineInfo {
         this.vm = vm;
         
         // Name
+        uuid  = (String)  pTable.get("config.instanceUuid");
         name = (String) pTable.get("name");
 
         ManagedObjectReference hostHmor = (ManagedObjectReference) pTable.get("runtime.host");

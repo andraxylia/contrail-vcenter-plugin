@@ -183,7 +183,7 @@ public class VmwareVirtualNetworkInfo {
 
         String key = (String) pTable.get("config.key");
         byte[] vnKeyBytes = key.getBytes();
-        String vnUuid = UUID.nameUUIDFromBytes(vnKeyBytes).toString();
+        uuid = UUID.nameUUIDFromBytes(vnKeyBytes).toString();
 
         // get pvlan/vlan info for the portgroup.
         HashMap<String, Short> vlan = vcenterDB.getVlanInfo(dpg, portSetting, pvlanMapArray);

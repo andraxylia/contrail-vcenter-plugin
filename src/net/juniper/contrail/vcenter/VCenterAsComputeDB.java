@@ -63,7 +63,7 @@ public class VCenterAsComputeDB extends VCenterDB {
                      String vcenterPassword, String contrailDcName,
                      String contrailDvsName, String ipFabricPgName) {
       super(vcenterUrl, vcenterUsername, vcenterPassword, contrailDcName,
-            contrailDvsName, ipFabricPgName);
+            contrailDvsName, ipFabricPgName, "vcenter-as-compute");
     }
 
     VmwareVirtualMachineInfo fillVmwareVirtualMachineInfo(
