@@ -135,7 +135,7 @@ public class VmwareVirtualMachineInfo {
         
         for (Network net: nets) {
             String netName = net.getName();
-            VmwareVirtualNetworkInfo vnInfo = vcenterDB.getVnByName(netName);
+            VmwareVirtualNetworkInfo vnInfo = MainDB.getVnByName(netName);
             if (vnInfo == null) {
                 continue;
             }

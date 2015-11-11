@@ -55,7 +55,7 @@ public class VCenterEventHandler implements Runnable {
     public void run() {
         printEvent();
 
-        vcenterDB.printInfo();
+        MainDB.printInfo();
         
         try {
             if (event instanceof VmBeingCreatedEvent
@@ -93,7 +93,7 @@ public class VCenterEventHandler implements Runnable {
             return;
         }
         
-        vcenterDB.printInfo();
+        MainDB.printInfo();
     }
 
     private void watchVm() {
@@ -115,7 +115,7 @@ public class VCenterEventHandler implements Runnable {
             return;
         } 
         
-        VmwareVirtualMachineInfo oldVmInfo = vcenterDB.getVmById(vmInfo.getUuid());
+        VmwareVirtualMachineInfo oldVmInfo = MainDB.getVmById(vmInfo.getUuid());
        
         if (vmInfo.equals(oldVmInfo)) {
             // nothing changed
@@ -177,7 +177,7 @@ public class VCenterEventHandler implements Runnable {
         }
         
         // vmInfo will not become current
-        vcenterDB.updateVM(vmInfo);
+        MainDB.updateVM(vmInfo);
     }
 
     private void handleVmDeleteEvent() throws Exception {
@@ -197,7 +197,7 @@ public class VCenterEventHandler implements Runnable {
         
         vncDB.deleteVmApiObjects(vmInfo);
         
-        vcenterDB.deleteVM(vmInfo);
+        MainDB.deleteVM(vmInfo);
     }
 
     private void handleNetworkCreateEvent() throws Exception {
@@ -211,14 +211,14 @@ public class VCenterEventHandler implements Runnable {
             return;
         }
 
-        VmwareVirtualNetworkInfo oldVnInfo = vcenterDB.getVnByName(vnInfo.getName());
+        VmwareVirtualNetworkInfo oldVnInfo = MainDB.getVnByName(vnInfo.getName());
         if (vnInfo.equals(oldVnInfo)) {
             // nothing changed
             return;
         }
 
         vncDB.createOrUpdateVnApiObjects(vnInfo);
-        vcenterDB.updateVN(vnInfo);
+        MainDB.updateVN(vnInfo);
     }
 
     private void handleNetworkDeleteEvent() throws Exception {
@@ -230,7 +230,7 @@ public class VCenterEventHandler implements Runnable {
         
         vncDB.deleteVnApiObjects(vnInfo);
         
-        vcenterDB.deleteVN(vnInfo);
+        MainDB.deleteVN(vnInfo);
     }
 
     private void handleEvent(Event event) throws IOException {

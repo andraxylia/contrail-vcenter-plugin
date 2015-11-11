@@ -222,12 +222,14 @@ public class VCenterMonitor {
         }*/
                 
         _vcenterDB = new VCenterDB(_vcenterURL, _vcenterUsername, _vcenterPassword,
-                _vcenterDcName, _vcenterDvsName, _vcenterIpFabricPg, _mode);
-
+                _vcenterDcName, _vcenterDvsName, _vcenterIpFabricPg, _mode);        
+        // can we move the init in the constructor?
         _vcenterDB.init();
         
         _vncDB = new VncDB(_apiServerAddress, _apiServerPort, _mode);
-        _vncDB.init(_vcenterDB.vmwareVNs, _vcenterDB.vmwareVMs);
+        _vncDB.init();
+        
+        MainDB.init(_vcenterDB, _vncDB, _mode);
         
         s_logger.info("Starting event monitor Task.. ");
         _eventMonitor = new VCenterNotify(null, _vcenterDB, _vncDB, _vcenterURL,

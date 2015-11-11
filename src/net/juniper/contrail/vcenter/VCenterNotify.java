@@ -151,8 +151,7 @@ public class VCenterNotify implements Runnable
         this.vcenterPassword        = vcenterPassword;
         this.contrailDataCenterName = contrailDcName;
 
-        notifExec = Executors.newScheduledThreadPool(4);
-
+        notifExec = Executors.newScheduledThreadPool(1);
     }
 
     /**

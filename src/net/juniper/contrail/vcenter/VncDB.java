@@ -1819,17 +1819,9 @@ public class VncDB {
         }
     }
 
-    public void init(SortedMap<String, VmwareVirtualNetworkInfo> vnInfoMap,
-                     SortedMap<String, VmwareVirtualMachineInfo> vmInfoMap) 
-                             throws Exception
-    {
+    public void init() throws Exception {
         while (Initialize() != true) {
             Thread.sleep(2);
-        }
-        
-        if (mode == "vcenter-only") {
-            syncVirtualNetworks(vnInfoMap);
-            syncVirtualMachines(vmInfoMap);
         }
     }
 }

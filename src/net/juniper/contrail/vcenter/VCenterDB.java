@@ -86,8 +86,6 @@ public class VCenterDB {
     protected volatile Datacenter contrailDC;
     protected volatile VmwareDistributedVirtualSwitch contrailDVS;
     private volatile SortedMap<String, VmwareVirtualNetworkInfo> prevVmwareVNInfos;
-    volatile SortedMap<String, VmwareVirtualNetworkInfo> vmwareVNs;
-    volatile SortedMap<String, VmwareVirtualMachineInfo> vmwareVMs;
     private volatile ConcurrentMap<String, Datacenter> datacenters;
     private volatile ConcurrentMap<String, VmwareDistributedVirtualSwitch> dvswitches;
 
@@ -109,9 +107,6 @@ public class VCenterDB {
         // Create ESXi host to vRouterVM Ip address map
         esxiToVRouterIpMap = new HashMap<String, String>();
         vRouterActiveMap = new HashMap<String, Boolean>();
-
-        vmwareVNs = new ConcurrentSkipListMap<String, VmwareVirtualNetworkInfo>();
-        vmwareVMs = new ConcurrentSkipListMap<String, VmwareVirtualMachineInfo>();
         datacenters = new ConcurrentHashMap<String, Datacenter>();
         dvswitches = new ConcurrentHashMap<String, VmwareDistributedVirtualSwitch>();
     }
@@ -1366,73 +1361,6 @@ public class VCenterDB {
     public String getVcenterUrl() { 
         return vcenterUrl; 
     }
-
-    public void updateVM(VmwareVirtualMachineInfo vmInfo) {
-        String uuid = vmInfo.getUuid();
-
-        if (vmwareVMs.containsKey(uuid)) {
-            s_logger.info("Update: " + vmInfo);
-        } else {
-            s_logger.info("Add: " + vmInfo);
-        }
-        vmwareVMs.put(uuid, vmInfo);
-    }
-
-    public void deleteVM(VmwareVirtualMachineInfo vmInfo) {
-        String uuid = vmInfo.getUuid();
-
-        if (!vmwareVMs.containsKey(uuid)) {
-            s_logger.error("Could not find and delete: " + vmInfo);
-            return;
-        }
-        s_logger.info("Delete: " + vmInfo);
-        vmwareVMs.remove(uuid);
-    }
-
-    public void updateVN(VmwareVirtualNetworkInfo vnInfo) {
-        String uuid = vnInfo.getUuid();
-
-        if (vmwareVNs.containsKey(uuid)) {
-            s_logger.info("Update: " + vnInfo);
-        } else {
-            s_logger.info("Add: " + vnInfo);
-        }
-        vmwareVNs.put(uuid, vnInfo);
-    }
-
-    public void deleteVN(VmwareVirtualNetworkInfo vnInfo) {
-        String uuid = vnInfo.getUuid();
-
-        if (!vmwareVNs.containsKey(uuid)) {
-            s_logger.info("Could not find and delete: " + vnInfo);
-            return;
-        }
-        s_logger.info("Delete: " + vnInfo);
-        vmwareVNs.remove(uuid);
-    }
-
-    public VmwareVirtualNetworkInfo getVnByName(String name) {
-        for (VmwareVirtualNetworkInfo vnInfo: vmwareVNs.values()) {
-            if (vnInfo.getName().equals(name)) {
-                return vnInfo;
-            }
-        }
-        return null;
-    }
-
-    public VmwareVirtualNetworkInfo getVnById(String uuid) {
-        if (vmwareVNs.containsKey(uuid)) {
-            return vmwareVNs.get(uuid);
-        }
-        return null;
-    }
-    
-    public VmwareVirtualMachineInfo getVmById(String uuid) {
-        if (vmwareVMs.containsKey(uuid)) {
-            return vmwareVMs.get(uuid);
-        }
-        return null;
-    }
     
     public Datacenter getVmwareDatacenter(String name)
         throws RemoteException {
@@ -1622,20 +1550,9 @@ public class VCenterDB {
         s_logger.info("Found " + description);
         return vm;
     }
-  
-    public void printInfo() {
-        s_logger.info("Andra networks:");
-        for (VmwareVirtualNetworkInfo vnInfo: vmwareVNs.values()) {
-            s_logger.info(vnInfo.toStringBuffer().toString());
-        }
-        
-        s_logger.info("Andra VMs:");
-        for (VmwareVirtualMachineInfo vmInfo: vmwareVMs.values()) {
-            s_logger.info(vmInfo.toStringBuffer().toString());
-        }
-    }
-    
-    void readAllVirtualNetworks() throws Exception {
+      
+    public void readAllVirtualNetworks(SortedMap<String, VmwareVirtualNetworkInfo> map) 
+            throws Exception {
 
         if (contrailDVS == null) {
             s_logger.error("dvSwitch: " + contrailDvSwitchName +
@@ -1706,11 +1623,12 @@ public class VCenterDB {
                             contrailDVS, contrailDvSwitchName,
                             ipPools, pvlanMapArray);
             
-            vmwareVNs.put(vnInfo.getUuid(), vnInfo);
+            map.put(vnInfo.getUuid(), vnInfo);
         }
     }
 
-    public void readAllVirtualMachines(ManagedEntity me, 
+    private void readAllVirtualMachines(SortedMap<String, VmwareVirtualMachineInfo> map,
+            ManagedEntity me, 
             Datacenter dc, String dcName) 
                 throws Exception {
 
@@ -1747,19 +1665,20 @@ public class VCenterDB {
                 // By design we skip unconnected VMs
                 continue;
             }
-            vmwareVMs.put(vmInfo.getUuid(), vmInfo);
+            map.put(vmInfo.getUuid(), vmInfo);
         }
     }
     
-    public void readAllVirtualMachines() throws Exception {
+    void readAllVirtualMachines(SortedMap<String, VmwareVirtualMachineInfo> map) 
+            throws Exception {
         
-        /* the method above can be called in a loop to read multiple  
+        /* the method below can be called in a loop to read multiple  
          * datacenters and read VMs per hosts     
          * for (dc: datacenters)
          * for (host: dc)
             readAllVirtualMachines(host, dc, dcName);
          */
-        readAllVirtualMachines(contrailDC, contrailDC, contrailDataCenterName);
+        readAllVirtualMachines(map, contrailDC, contrailDC, contrailDataCenterName);
     }
     
     public void init() throws Exception{
@@ -1768,17 +1687,6 @@ public class VCenterDB {
         }
         while (Initialize_data() != true) {
             Thread.sleep(2);
-        }
-     
-        for (;;) {
-            try {
-                readAllVirtualNetworks();
-                readAllVirtualMachines();
-            } catch (Exception e) {
-                Thread.sleep(2);
-                continue;
-            }
-            break;
         }
     }
 }
