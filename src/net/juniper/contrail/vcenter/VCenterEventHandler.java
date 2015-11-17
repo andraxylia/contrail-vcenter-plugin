@@ -2,12 +2,12 @@
  * Copyright (c) 2015 Juniper Networks, Inc. All rights reserved.
  *
  * @author Andra Cismaru
+ * 
+ * Handles functionality related to events received from VCenter
  */
 package net.juniper.contrail.vcenter;
 
 import java.io.IOException;
-import java.util.Iterator;
-import java.util.Map.Entry;
 import com.vmware.vim25.DVPortgroupCreatedEvent;
 import com.vmware.vim25.DVPortgroupDestroyedEvent;
 import com.vmware.vim25.DVPortgroupReconfiguredEvent;
@@ -115,69 +115,7 @@ public class VCenterEventHandler implements Runnable {
             return;
         } 
         
-        VmwareVirtualMachineInfo oldVmInfo = MainDB.getVmById(vmInfo.getUuid());
-       
-        if (vmInfo.equals(oldVmInfo)) {
-            // nothing changed
-            return;
-        }
- 
-        //TODO add here special handling for vmware bug where ipaddress gets nulled
-        
-        vncDB.createOrUpdateApiVm(vmInfo, null);
- 
-        boolean updateVrouterNeeded = vmInfo.updateVrouterNeeded(oldVmInfo);
-               
-        Iterator<Entry<String, VmwareVirtualMachineInterfaceInfo>> iter1 =
-                vmInfo.getVmiInfo().entrySet().iterator();
-        Iterator<Entry<String, VmwareVirtualMachineInterfaceInfo>> iter2 =
-                oldVmInfo.getVmiInfo().entrySet().iterator();
-        while (iter1.hasNext() && iter2.hasNext()) {
-            Entry<String, VmwareVirtualMachineInterfaceInfo> entry = iter1.next();
-            VmwareVirtualMachineInterfaceInfo vmiInfo = entry.getValue();
-            Entry<String, VmwareVirtualMachineInterfaceInfo> oldEntry = iter2.next();
-            VmwareVirtualMachineInterfaceInfo oldVmiInfo = oldEntry.getValue();
-            
-            if (updateVrouterNeeded || !entry.getKey().equals(oldEntry.getKey())
-                    || !vmiInfo.equals(oldVmiInfo)) {
-      
-                // something has changed for this adaptor
-                VRouterNotifier.deletePort(oldVmiInfo);
-                if (oldVmiInfo.vnInfo.getExternalIpam() == false) {
-                    vncDB.deleteApiInstanceIp(oldVmiInfo);
-                }
-                vncDB.deleteApiVmi(oldVmiInfo);
-                
-                vncDB.createOrUpdateApiVmi(vmiInfo);
-                if (vmiInfo.vnInfo.getExternalIpam() == false) {
-                    vncDB.createOrUpdateApiInstanceIp(vmiInfo);
-                }
-                VRouterNotifier.addPort(vmiInfo);
-            }
-        }
-        while (iter2.hasNext()) {
-            Entry<String, VmwareVirtualMachineInterfaceInfo> oldEntry = iter2.next();
-            VmwareVirtualMachineInterfaceInfo oldVmiInfo = oldEntry.getValue();
-            VRouterNotifier.deletePort(oldVmiInfo);
-            if (oldVmiInfo.vnInfo.getExternalIpam() == false) {
-                vncDB.deleteApiInstanceIp(oldVmiInfo);
-            }
-            vncDB.deleteApiVmi(oldVmiInfo);
-        }
-        
-        while (iter1.hasNext()) {
-            Entry<String, VmwareVirtualMachineInterfaceInfo> entry = iter1.next();
-            VmwareVirtualMachineInterfaceInfo vmiInfo = entry.getValue();
-            
-            vncDB.createOrUpdateApiVmi(vmiInfo);
-            if (vmiInfo.vnInfo.getExternalIpam() == false) {
-                vncDB.createOrUpdateApiInstanceIp(vmiInfo);
-            }
-            VRouterNotifier.addPort(entry.getValue());
-        }
-        
-        // vmInfo will not become current
-        MainDB.updateVM(vmInfo);
+        MainDB.updateVirtualMachine(vmInfo);
     }
 
     private void handleVmDeleteEvent() throws Exception {
@@ -187,17 +125,7 @@ public class VCenterEventHandler implements Runnable {
             return;
         }
   
-        Iterator<Entry<String, VmwareVirtualMachineInterfaceInfo>> iter =
-                vmInfo.getVmiInfo().entrySet().iterator();
-        while (iter.hasNext()) {
-            Entry<String, VmwareVirtualMachineInterfaceInfo> entry = iter.next();
-            VmwareVirtualMachineInterfaceInfo vmiInfo = entry.getValue();
-            VRouterNotifier.deletePort(vmiInfo);
-        }
-        
-        vncDB.deleteVmApiObjects(vmInfo);
-        
-        MainDB.deleteVM(vmInfo);
+        MainDB.deleteVirtualMachine(vmInfo);
     }
 
     private void handleNetworkCreateEvent() throws Exception {
@@ -205,32 +133,25 @@ public class VCenterEventHandler implements Runnable {
     }
 
     private void handleNetworkUpdateEvent() throws Exception {
-        VmwareVirtualNetworkInfo vnInfo = new VmwareVirtualNetworkInfo(event, vcenterDB);
+        VmwareVirtualNetworkInfo vnInfo = 
+                new VmwareVirtualNetworkInfo(event, vcenterDB);
         
         if (vnInfo.ignore()) {
             return;
         }
 
-        VmwareVirtualNetworkInfo oldVnInfo = MainDB.getVnByName(vnInfo.getName());
-        if (vnInfo.equals(oldVnInfo)) {
-            // nothing changed
-            return;
-        }
-
-        vncDB.createOrUpdateVnApiObjects(vnInfo);
-        MainDB.updateVN(vnInfo);
+        MainDB.updateVirtualNetwork(vnInfo);
     }
 
     private void handleNetworkDeleteEvent() throws Exception {
-        VmwareVirtualNetworkInfo vnInfo = new VmwareVirtualNetworkInfo(event, vcenterDB);
+        VmwareVirtualNetworkInfo vnInfo = 
+                new VmwareVirtualNetworkInfo(event, vcenterDB);
         
         if (vnInfo.ignore()) {
             return;
         }
-        
-        vncDB.deleteVnApiObjects(vnInfo);
-        
-        MainDB.deleteVN(vnInfo);
+ 
+        MainDB.deleteVirtualNetwork(vnInfo);
     }
 
     private void handleEvent(Event event) throws IOException {

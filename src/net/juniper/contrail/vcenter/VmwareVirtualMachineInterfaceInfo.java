@@ -21,8 +21,10 @@ public class VmwareVirtualMachineInterfaceInfo {
     net.juniper.contrail.api.types.VirtualMachineInterface apiVmi;
     net.juniper.contrail.api.types.InstanceIp apiInstanceIp;
 
-    VmwareVirtualMachineInterfaceInfo(String uuid) {
-        this.uuid = uuid;
+    VmwareVirtualMachineInterfaceInfo(VmwareVirtualMachineInfo vmInfo,
+            VmwareVirtualNetworkInfo vnInfo) {
+        this.vmInfo = vmInfo;
+        this.vnInfo = vnInfo;
     }
 
     public String getUuid() {

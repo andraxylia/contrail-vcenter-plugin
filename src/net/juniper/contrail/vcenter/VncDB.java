@@ -14,14 +14,13 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.UUID;
-
 import org.apache.log4j.Logger;
 import org.apache.commons.net.util.SubnetUtils;
-
 import net.juniper.contrail.api.ApiConnector;
 import net.juniper.contrail.api.ApiConnectorFactory;
 import net.juniper.contrail.api.ApiPropertyBase;
@@ -1321,102 +1320,17 @@ public class VncDB {
         }
     }
 
-    public void createOrUpdateVmApiObjects(VmwareVirtualMachineInfo vmInfo, VirtualMachine vm)
+    public void updateVirtualNetwork(VmwareVirtualNetworkInfo vnInfo)
             throws IOException {
-        createOrUpdateApiVm(vmInfo, vm);
-
-         // loop through all the networks in which
-         // this VM participates and create VMIs and IP Instances
-         for (Map.Entry<String, VmwareVirtualMachineInterfaceInfo> entry: 
-                 vmInfo.getVmiInfo().entrySet()) {
-             VmwareVirtualMachineInterfaceInfo vmiInfo = entry.getValue();
-             VmwareVirtualNetworkInfo vnInfo = vmiInfo.getVnInfo();
-             //createOrUpdateApiVn(vnInfo);
-             createOrUpdateApiVmi(vmiInfo);
-             if (vnInfo.getExternalIpam() == false) {
-                 createOrUpdateApiInstanceIp(vmiInfo);
-             }
-         }
-    }
-    
-    public void createOrUpdateVmApiObjects(VmwareVirtualMachineInfo vmInfo)
-            throws IOException {
-        createOrUpdateVmApiObjects(vmInfo, null);
-    }
-
-    public void deleteVmApiObjects(VmwareVirtualMachineInfo vmInfo)
-            throws IOException {    
-         // loop through all the networks in which
-         // this VM participates and delete VMIs and IP Instances
-         for (Map.Entry<String, VmwareVirtualMachineInterfaceInfo> entry: 
-                 vmInfo.getVmiInfo().entrySet()) {
-             VmwareVirtualMachineInterfaceInfo vmiInfo = entry.getValue();
-             VmwareVirtualNetworkInfo vnInfo = vmiInfo.getVnInfo();
-             
-             if (vnInfo.getExternalIpam() == false) {
-                 deleteApiInstanceIp(vmiInfo);
-             }
-             deleteApiVmi(vmiInfo);
-         }
-         
-         deleteApiVm(vmInfo);
-    }
-
-    public void createOrUpdateVnApiObjects(VmwareVirtualNetworkInfo vnInfo)
-            throws IOException {
-        createOrUpdateApiVn(vnInfo, null);
-    }
-
-    public void createOrUpdateVnApiObjects(VmwareVirtualNetworkInfo vnInfo,
-            VirtualNetwork vn)
-            throws IOException {
-        createOrUpdateApiVn(vnInfo, vn);
-    }
-    
-    /*
-    public void createVirtualNetworks(
-            Map<String, VmwareVirtualNetworkInfo> vnInfoMap)
-            throws IOException {
-        Iterator<Entry<String, VmwareVirtualNetworkInfo>> iter = 
-                vnInfoMap.entrySet().iterator();
         
-        while (iter.hasNext()) {
-            Entry<String, VmwareVirtualNetworkInfo> entry = iter.next();
-            createOrUpdateApiVn(entry.getValue());
-        }
-    }
-
-    public void createVirtualMachines(
-            Map<String, VmwareVirtualMachineInfo> vmInfoMap)
-            throws IOException {
-        Iterator<Entry<String, VmwareVirtualMachineInfo>> iter = 
-                vmInfoMap.entrySet().iterator();
-        
-        while (iter.hasNext()) {
-            Entry<String, VmwareVirtualMachineInfo> entry = iter.next();
-            createOrUpdateVmApiObjects(entry.getValue());
-        }
-    }*/
-
-    public void deleteVnApiObjects(VmwareVirtualNetworkInfo vnInfo)
-            throws IOException {
-        deleteApiVn(vnInfo);
-    }
-
-    public void createOrUpdateApiVn(VmwareVirtualNetworkInfo vnInfo, VirtualNetwork vn)
-            throws IOException {
         if (vnInfo == null) {
-            s_logger.error("Incomplete information for creating API VN");
+            s_logger.error("Null pointer argument");
             throw new IllegalArgumentException();
         }
+           
         String vnUuid = vnInfo.getUuid();
-        String descr = "Virtual Network <"
-                + vnInfo.getName()
-                + ", UUID " + vnUuid
-                + ", vlan " + vnInfo.getPrimaryVlanId() + "/"
-                + vnInfo.getIsolatedVlanId() + ">";
-
         boolean create = false;
+        VirtualNetwork vn = vnInfo.apiVn;
         if (vn == null) {
             
              vn = (VirtualNetwork) apiConnector.findById(
@@ -1425,6 +1339,7 @@ public class VncDB {
              if (vn == null) {
                  create = true;
                  vn = new VirtualNetwork();
+                 vnInfo.apiVn = vn;
              }
         }
         
@@ -1476,94 +1391,110 @@ public class VncDB {
          vn.setNetworkIpam(vCenterIpam, subnet);
          */
          if (create) {
-             s_logger.info("Create " + descr);
+             s_logger.info("Create " + vnInfo);
              apiConnector.create(vn);
          } else {
-             s_logger.info("Update " + descr);
+             s_logger.info("Update " + vnInfo);
              apiConnector.update(vn);
          }
-         apiConnector.read(vn);
-         
-         vnInfo.apiVn = vn;
+         //apiConnector.read(vn);
     }
 
-    public void deleteApiVn(VmwareVirtualNetworkInfo vnInfo)
+    public void deleteVirtualNetwork(VmwareVirtualNetworkInfo vnInfo)
             throws IOException {
-        if (vnInfo == null || vnInfo.apiVn == null) {
+        
+        if (vnInfo == null) {
             s_logger.error("Cannot delete API VN: null arguments");
             throw new IllegalArgumentException("Null arguments");
+        }
+      
+        if (vnInfo.apiVn == null) {
+                       
+            vnInfo.apiVn = (VirtualNetwork) apiConnector.findById(
+                    VirtualNetwork.class, vnInfo.getUuid());
+   
+            if (vnInfo.apiVn == null) {
+                s_logger.error("Cannot delete, not found: " + vnInfo);
+                return;
+            }
         }
 
         apiConnector.delete(vnInfo.apiVn);
         vnInfo.apiVn = null;
-        s_logger.info("Deleted " + vnInfo.apiVn);
+        s_logger.info("Deleted " + vnInfo);
     }
 
-    public void createOrUpdateApiVm(VmwareVirtualMachineInfo vmInfo, VirtualMachine vm)
+    public void updateVirtualMachine(VmwareVirtualMachineInfo vmInfo)
             throws IOException {
+        
+        //TODO add here special handling for vmware bug where ipaddress gets nulled
+        
         if (vmInfo == null) {
-            s_logger.error("Incomplete information for creating VM in the Api Server");
+            s_logger.error("Null argument");
             throw new IllegalArgumentException("vmInfo is null");
         }
 
         String vmUuid = vmInfo.getUuid();
-        String descr = "VM <" + vmInfo.getName()
-                + ", EsxiHost:" + vmInfo.getHostName()
-                + ", uuid " + vmUuid
-                + ", vrouterIp: " + vmInfo.getVrouterIpAddress() + ">";
+        VirtualMachine vm = vmInfo.apiVm;
+        
+        // Virtual Machine
+        boolean create = false;
+        if (vm == null) {
+            vm = (VirtualMachine) apiConnector.findById(
+                    VirtualMachine.class, vmUuid);
+            if (vm == null) {
+                create = true;
+                vm = new VirtualMachine();
+                vmInfo.apiVm = vm;
+            }
+        }
+        vm.setName(vmUuid);
+        vm.setUuid(vmUuid);
 
-         // Virtual Machine
-         boolean create = false;
-         if (vm == null) {
-             vm = (VirtualMachine) apiConnector.findById(
-                     VirtualMachine.class, vmUuid);
-    
-             if (vm == null) {
-                 create = true;
-                 vm = new VirtualMachine();
-             }
-         }
-         vm.setName(vmInfo.getName());
-         vm.setUuid(vmUuid);
+        // Encode VRouter IP address in display name
+        if (vmInfo.getVrouterIpAddress() != null) {
+            vm.setDisplayName(vmInfo.getVrouterIpAddress());
+        }
+        vm.setIdPerms(vCenterIdPerms);
+        if (create) {
+            s_logger.info("Create " + vm);
+            apiConnector.create(vm);
+        } else {
+            s_logger.info("Update " + vm);
+            apiConnector.update(vm);
+        }
 
-         // Encode VRouter IP address in display name
-         if (vmInfo.getVrouterIpAddress() != null) {
-             vm.setDisplayName(vmInfo.getVrouterIpAddress());
-         }
-         vm.setIdPerms(vCenterIdPerms);
-         if (create) {
-             s_logger.info("Create " + descr);
-             apiConnector.create(vm);
-         } else {
-             s_logger.info("Update " + descr);
-             apiConnector.update(vm);
-         }
-
-         apiConnector.read(vm);
-         
-         vmInfo.apiVm = vm;
+        //apiConnector.read(vm);
     }
 
-    public void deleteApiVm(VmwareVirtualMachineInfo vmInfo)
+
+    public void deleteVirtualMachine(VmwareVirtualMachineInfo vmInfo)
             throws IOException {
-        if (vmInfo == null || vmInfo.apiVm == null) {
+        if (vmInfo == null) {
             s_logger.error("Cannot delete VM: null arguments");
             throw new IllegalArgumentException("Null arguments");
         }
-
+        if (vmInfo.apiVm == null) {
+            vmInfo.apiVm = (VirtualMachine) apiConnector.findById(
+                    VirtualMachine.class, vmInfo.getUuid());
+            if (vmInfo.apiVm == null) {
+                s_logger.error("Cannot delete VM, it does not exist " + vmInfo);
+                return;
+            }
+        }
         apiConnector.delete(vmInfo.apiVm);
         vmInfo.apiVm = null;
         s_logger.info("Deleted " + vmInfo.apiVm);
     }
 
-    public void createOrUpdateApiVmi(VmwareVirtualMachineInterfaceInfo vmiInfo)
+    public void updateVirtualMachineInterface(
+            VmwareVirtualMachineInterfaceInfo vmiInfo)
             throws IOException {
         VmwareVirtualMachineInfo vmInfo = vmiInfo.vmInfo;
         VirtualMachine vm = vmInfo.apiVm;
         VirtualNetwork network = vmiInfo.vnInfo.apiVn;
-        String descr = "VMI <" + vmiInfo.vnInfo.getName() + ", "
-                + vmInfo.getName() + ">";
         
+        /*
         // find VMI matching vmUuid & vnUuid
         List<ObjectReference<ApiPropertyBase>> vmInterfaceRefs =
                 vm.getVirtualMachineInterfaceBackRefs();
@@ -1584,7 +1515,7 @@ public class VncDB {
                     return;
                 }
             }
-        }
+        }*/
 
         // create Virtual machine interface
         String vmInterfaceName = "vmi-" + network.getName()
@@ -1592,24 +1523,25 @@ public class VncDB {
        
         VirtualMachineInterface vmInterface = new VirtualMachineInterface();
         vmInterface.setDisplayName(vmInterfaceName);
-        vmInterface.setUuid(vmiInfo.getUuid());
-        vmInterface.setName(vmiInfo.getUuid());
+        String vmiUuid = UUID.randomUUID().toString();
+        vmInterface.setUuid(vmiUuid);
+        vmInterface.setName(vmiUuid);
         vmInterface.setParent(vCenterProject);
         vmInterface.setSecurityGroup(vCenterDefSecGrp);
         vmInterface.setVirtualNetwork(network);
         vmInterface.addVirtualMachine(vm);
         MacAddressesType macAddrType = new MacAddressesType();
-        macAddrType.addMacAddress(vmInfo.getMacAddress());
+        macAddrType.addMacAddress(vmiInfo.getMacAddress());
         vmInterface.setMacAddresses(macAddrType);
         vmInterface.setIdPerms(vCenterIdPerms);
         apiConnector.create(vmInterface);
         apiConnector.read(vmInterface);
         vmiInfo.apiVmi = vmInterface;
-        s_logger.debug("Created " + descr + " virtual machine interface:" + vmInterfaceName
-                + ", vmiUuid:" + vmiInfo.getUuid());
+        s_logger.debug("Created " + vmiInfo);
     }
 
-    public void deleteApiVmi(VmwareVirtualMachineInterfaceInfo vmiInfo)
+    public void deleteVirtualMachineInterface(
+            VmwareVirtualMachineInterfaceInfo vmiInfo)
             throws IOException {
         if (vmiInfo == null || vmiInfo.apiVmi == null) {
             s_logger.error("Cannot delete VMI: null argument");
@@ -1617,10 +1549,10 @@ public class VncDB {
         }
         apiConnector.delete(vmiInfo.apiVmi);
         vmiInfo.apiVmi = null;
-        s_logger.info("Deleted " + vmiInfo.apiVmi);
+        s_logger.info("Deleted " + vmiInfo);
     }
 
-    public void createOrUpdateApiInstanceIp(
+    public void updateInstanceIp(
             VmwareVirtualMachineInterfaceInfo vmiInfo)
             throws IOException {
         VirtualNetwork network = vmiInfo.vnInfo.apiVn;
@@ -1646,24 +1578,38 @@ public class VncDB {
                 vmIpAddress);
     }
 
-    public void deleteApiInstanceIp(
+    public void deleteInstanceIp(
             VmwareVirtualMachineInterfaceInfo vmiInfo)
             throws IOException {
         
-        if (vmiInfo == null || vmiInfo.apiInstanceIp == null) {
-            s_logger.info("Cannot delete Instance IP null object ");
+        if (vmiInfo == null) {
+            s_logger.info("Null argument");
+            return;
+        }
+        
+        if (vmiInfo.apiInstanceIp == null) {
+            // delete instance Ip
+            List<ObjectReference<ApiPropertyBase>> instanceIpRefs = 
+                    vmiInfo.apiVmi.getInstanceIpBackRefs();
+            for (ObjectReference<ApiPropertyBase> instanceIpRef : 
+                Utils.safe(instanceIpRefs)) {
+                s_logger.info("Delete instance IP: " + 
+                        instanceIpRef.getReferredName());
+                apiConnector.delete(InstanceIp.class, 
+                        instanceIpRef.getUuid());
+            }
             return;
         }
 
         apiConnector.delete(vmiInfo.apiInstanceIp);
         vmiInfo.apiInstanceIp = null;
-        s_logger.info("Deleted " + vmiInfo.apiInstanceIp);
+        s_logger.info("Deleted Ip Instance for " + vmiInfo.getIpAddress());
     }
-    
-    SortedMap<String, VirtualNetwork> readVirtualNetworks() {
-        SortedMap<String, VirtualNetwork>  apiMap = 
-                new TreeMap<String, VirtualNetwork>();
-        
+
+    SortedMap<String, VmwareVirtualNetworkInfo> readVirtualNetworks() {
+        SortedMap<String, VmwareVirtualNetworkInfo>  map = 
+                new ConcurrentSkipListMap<String, VmwareVirtualNetworkInfo>();
+
         List<VirtualNetwork> apiObjs = null;
         try {
             apiObjs = (List<VirtualNetwork>) 
@@ -1671,82 +1617,40 @@ public class VncDB {
         } catch (Exception ex) {
             s_logger.error("Exception in api.list(VirtualNetorks): " + ex);
             ex.printStackTrace();
-            return apiMap;
+            return map;
         }
         
-        for (VirtualNetwork obj : apiObjs) {
+        for (VirtualNetwork vn : apiObjs) {
             try {
-                // Read in the virtual network
-                apiConnector.read(obj);
-               // Ignore network ?
-                if (doIgnoreVirtualNetwork(obj.getName())) {
+                //TODO can we get rid of this call by reading everything with the list?
+                apiConnector.read(vn);
+                // Ignore network ?
+                if (doIgnoreVirtualNetwork(vn.getName())) {
                     continue;
                 }
                 // Ignore objects where creator isn't "vcenter-plugin"
-                if ((obj.getIdPerms().getCreator() == null)  ||
-                    !(obj.getIdPerms().getCreator().equals(VNC_VCENTER_PLUGIN))) {
+                if ((vn.getIdPerms().getCreator() == null)  ||
+                    !(vn.getIdPerms().getCreator().equals(VNC_VCENTER_PLUGIN))) {
                     continue;
                 }
-                apiMap.put(obj.getUuid(), obj);
+                VmwareVirtualNetworkInfo vnInfo = new VmwareVirtualNetworkInfo(vn);
+                
+                map.put(vnInfo.getUuid(), vnInfo);
                 
             } catch (Exception e) {
-                s_logger.error("Cannot read VN " + obj.getName());
+                s_logger.error("Cannot read VN " + vn.getName());
             }
         }
-        
-        return apiMap;
+
+        return map;
     }
 
-    void syncVirtualNetworks(SortedMap<String, VmwareVirtualNetworkInfo> vnInfoMap) {
-        
-        SortedMap<String, VirtualNetwork> apiMap = readVirtualNetworks();
-        
-        Iterator<Entry<String, VmwareVirtualNetworkInfo>> iter1 = vnInfoMap.entrySet().iterator();
-        Iterator<Entry<String, VirtualNetwork>> iter2 = apiMap.entrySet().iterator();
-        
-        while (iter1.hasNext() && iter2.hasNext()) {
-            Entry<String, VmwareVirtualNetworkInfo> entry1 = iter1.next();
-            Entry<String, VirtualNetwork> entry2 = iter2.next();
-              
-            Integer cmp = entry1.getKey().compareTo(entry2.getKey());
-            try {
-                if (cmp <= 0) {
-                    createOrUpdateVnApiObjects(entry1.getValue(),
-                            entry2.getValue());
-                } else {
-                    apiConnector.delete(entry2.getValue());
-                    //TODO delete all refs to this VM
-                }
-            } catch (Exception e) {
-                s_logger.error("Cannot sync VN " + entry1.getKey());
-            }
-        }
-        
-        while (iter2.hasNext()) {
-            Entry<String, VirtualNetwork> entry2 = iter2.next();
-            try {
-               //TODO delete all refs to this VM
-                apiConnector.delete(entry2.getValue());
-            } catch (Exception e) {
-                s_logger.error("Cannot delete VN " + entry2.getKey());
-            }
-        }
-        
-        while (iter1.hasNext()) {
-            Entry<String, VmwareVirtualNetworkInfo> entry1 = iter1.next();
-            try {
-                createOrUpdateVnApiObjects(entry1.getValue());
-            } catch (Exception e) {
-                s_logger.error("Cannot create VN " + entry1.getKey());
-            }
-        }
-    }
-
-    SortedMap<String, VirtualMachine> readVirtualMachines() {
+ 
+    SortedMap<String, VmwareVirtualMachineInfo> readVirtualMachines() {
         
         List<VirtualMachine> apiVms = null;
-        SortedMap<String, VirtualMachine>  apiMap = 
-                new TreeMap<String, VirtualMachine>();
+        SortedMap<String, VmwareVirtualMachineInfo>  map = 
+                new ConcurrentSkipListMap<String, VmwareVirtualMachineInfo>();
         
         try {
             apiVms = (List<VirtualMachine>) 
@@ -1754,10 +1658,12 @@ public class VncDB {
         } catch (Exception e) {
             s_logger.error("Exception in api.list(VirtualMachine): " + e);
             e.printStackTrace();
+            return map;
         }
        
         for (VirtualMachine vm : apiVms) {
             try {
+                //TODO can we get rid of this call by reading everything with the list?
                 apiConnector.read(vm);
               
                 // Ignore objects where creator isn't "vcenter-plugin"
@@ -1766,59 +1672,61 @@ public class VncDB {
                     continue;
                 }
                 
-                apiMap.put(vm.getUuid(), vm);
+                VmwareVirtualMachineInfo vmInfo = new VmwareVirtualMachineInfo(vm);
+                readVirtualMachineInterfaces(vmInfo);
+                //readInstanceIp(vmInfo);
+
+                map.put(vmInfo.getUuid(), vmInfo);
             } catch (Exception e) {
                 s_logger.error("Cannot sync VM " + vm.getName());
             }
         }
         
-        return apiMap;
+        return map;
     }
 
-    void syncVirtualMachines(SortedMap<String, VmwareVirtualMachineInfo> vmInfoMap) {
+    public void readVirtualMachineInterfaces(VmwareVirtualMachineInfo vmInfo)
+        throws IOException {
         
-        Map<String, VirtualMachine> apiMap = readVirtualMachines();
+        List<ObjectReference<ApiPropertyBase>> vmInterfaceRefs =
+                vmInfo.apiVm.getVirtualMachineInterfaceBackRefs();
         
-        Iterator<Entry<String, VmwareVirtualMachineInfo>> iter1 = vmInfoMap.entrySet().iterator();
-        Iterator<Entry<String, VirtualMachine>> iter2 = apiMap.entrySet().iterator();
-        
-        while (iter1.hasNext() && iter2.hasNext()) {
-            Entry<String, VmwareVirtualMachineInfo> entry1 = iter1.next();
-            Entry<String, VirtualMachine> entry2 = iter2.next();
+        for (ObjectReference<ApiPropertyBase> vmInterfaceRef :
+            Utils.safe(vmInterfaceRefs)) {
+            String vmInterfaceUuid = vmInterfaceRef.getUuid();
+            VirtualMachineInterface vmInterface = (VirtualMachineInterface)
+                    apiConnector.findById(VirtualMachineInterface.class,
+                            vmInterfaceUuid);
             
-            Integer cmp = entry1.getKey().compareTo(entry2.getKey());
-            try {
-                if (cmp <= 0) {
-                    createOrUpdateVmApiObjects(entry1.getValue(), entry2.getValue());
-                } else {
-                    apiConnector.delete(entry2.getValue());
-                    //TODO delete all refs to this VM
+            List<ObjectReference<ApiPropertyBase>> vnRefs =
+                                            vmInterface.getVirtualNetwork();
+            for (ObjectReference<ApiPropertyBase> vnRef : vnRefs) {
+                VmwareVirtualNetworkInfo vnInfo = MainDB.getVnById(vnRef.getUuid());
+                VmwareVirtualMachineInterfaceInfo vmiInfo = 
+                        new VmwareVirtualMachineInterfaceInfo(vmInfo, vnInfo);
+                vmiInfo.setUuid(vmInterfaceUuid);
+                vmiInfo.apiVmi = vmInterface;
+                
+                List<ObjectReference<ApiPropertyBase>> instanceIpRefs = 
+                        vmiInfo.apiVmi.getInstanceIpBackRefs();
+                
+                for (ObjectReference<ApiPropertyBase> instanceIpRef : 
+                    Utils.safe(instanceIpRefs)) {
+                    InstanceIp inst = (InstanceIp)
+                            apiConnector.findById(InstanceIp.class,
+                                    instanceIpRef.getUuid());
+                    if (inst != null) {
+                        //TODO this is in fact a list of IP addresses
+                        vmiInfo.setIpAddress(inst.getAddress());
+                        vmiInfo.apiInstanceIp = inst;
+                    }
                 }
-            } catch (Exception e) {
-                s_logger.error("Cannot sync VM " + entry1.getKey());
-            }
-        }
-        
-        while (iter2.hasNext()) {
-            Entry<String, VirtualMachine> entry2 = iter2.next();
-            try {
-               //TODO delete all refs to this VM
-                apiConnector.delete(entry2.getValue());
-            } catch (Exception e) {
-                s_logger.error("Cannot delete VM " + entry2.getKey());
-            }
-        }
-        
-        while (iter1.hasNext()) {
-            Entry<String, VmwareVirtualMachineInfo> entry1 = iter1.next();
-            try {
-                createOrUpdateVmApiObjects(entry1.getValue());
-            } catch (Exception e) {
-                s_logger.error("Cannot create VM " + entry1.getKey()); 
+
+                vmInfo.vmiInfoMap.put(vnRef.getUuid(), vmiInfo);
             }
         }
     }
-
+    
     public void init() throws Exception {
         while (Initialize() != true) {
             Thread.sleep(2);

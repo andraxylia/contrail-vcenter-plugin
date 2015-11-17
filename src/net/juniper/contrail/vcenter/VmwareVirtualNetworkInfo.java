@@ -76,6 +76,21 @@ public class VmwareVirtualNetworkInfo {
         this.vmInfo = new ConcurrentSkipListMap<String, VmwareVirtualMachineInfo>();
     }
 
+    public VmwareVirtualNetworkInfo(net.juniper.contrail.api.types.VirtualNetwork vn) {
+        apiVn = vn;
+        uuid = vn.getUuid();
+        name = vn.getName();
+        //isolatedVlanId = ?
+        // primaryVlanId = ?;
+        externalIpam = vn.getExternalIpam();
+        // subnetAddress = ?
+        // subnetMask = ?
+        //gatewayAddress = ?
+        //ipPoolEnabled = ?
+        // range = ?
+        // TODO
+    }
+    
     public VmwareVirtualNetworkInfo(Event event,  VCenterDB vcenterDB) throws Exception {
         if (event.getDatacenter() != null) {
             dcName = event.getDatacenter().getName();
@@ -355,7 +370,7 @@ public class VmwareVirtualNetworkInfo {
         }
         return true;
     }
-    
+ 
     public String toString() {
         return "VN <" + name + ", " + uuid + ">";
     }

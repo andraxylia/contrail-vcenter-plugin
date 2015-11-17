@@ -1551,20 +1551,23 @@ public class VCenterDB {
         return vm;
     }
       
-    public void readAllVirtualNetworks(SortedMap<String, VmwareVirtualNetworkInfo> map) 
+    public SortedMap<String, VmwareVirtualNetworkInfo> readAllVirtualNetworks() 
             throws Exception {
 
+        SortedMap<String, VmwareVirtualNetworkInfo> map =
+                new ConcurrentSkipListMap<String, VmwareVirtualNetworkInfo>();
+        
         if (contrailDVS == null) {
             s_logger.error("dvSwitch: " + contrailDvSwitchName +
                     " NOT configured");
-            return;
+            return map;
         }
         // Extract distributed virtual port groups
         DistributedVirtualPortgroup[] dvPgs = contrailDVS.getPortgroup();
         if (dvPgs == null || dvPgs.length == 0) {
             s_logger.error("dvSwitch: " + contrailDvSwitchName +
                     " Distributed portgroups NOT configured");
-            return;
+            return map;
         }
         
         // Extract IP Pools
@@ -1573,7 +1576,7 @@ public class VCenterDB {
             s_logger.debug("dvSwitch: " + contrailDvSwitchName +
                     " Datacenter: " + contrailDC.getName() + " IP Pools NOT " +
                     "configured");
-            return;
+            return map;
         }
     
         // Extract private vlan entries for the virtual switch
@@ -1582,14 +1585,14 @@ public class VCenterDB {
             s_logger.error("dvSwitch: " + contrailDvSwitchName +
                     " Datacenter: " + contrailDC.getName() + " ConfigInfo " +
                     "is empty");
-            return;
+            return map;
         }
     
         if (!(dvsConfigInfo instanceof VMwareDVSConfigInfo)) {
             s_logger.error("dvSwitch: " + contrailDvSwitchName +
                     " Datacenter: " + contrailDC.getName() + " ConfigInfo " +
                     "isn't instanceof VMwareDVSConfigInfo");
-            return;
+            return map;
         }
     
         VMwareDVSPvlanMapEntry[] pvlanMapArray = dvsConfigInfo.getPvlanConfig();
@@ -1597,7 +1600,7 @@ public class VCenterDB {
             s_logger.error("dvSwitch: " + contrailDvSwitchName +
                     " Datacenter: " + contrailDC.getName() + " Private VLAN NOT" +
                     "configured");
-            return;
+            return map;
         }
     
         Hashtable[] pTables = PropertyCollectorUtil.retrieveProperties(dvPgs,
@@ -1625,6 +1628,8 @@ public class VCenterDB {
             
             map.put(vnInfo.getUuid(), vnInfo);
         }
+        
+        return map;
     }
 
     private void readAllVirtualMachines(SortedMap<String, VmwareVirtualMachineInfo> map,
@@ -1660,17 +1665,23 @@ public class VCenterDB {
                 continue;
             }
             
+            readVirtualMachineInterfaces(vmInfo);
+            
             if (vmInfo.getVmiInfo().size() == 0) {
                 // this can happen if the VM is not connected to any network
                 // By design we skip unconnected VMs
                 continue;
             }
+            
             map.put(vmInfo.getUuid(), vmInfo);
         }
     }
     
-    void readAllVirtualMachines(SortedMap<String, VmwareVirtualMachineInfo> map) 
-            throws Exception {
+    SortedMap<String, VmwareVirtualMachineInfo> readAllVirtualMachines() 
+            throws IOException, Exception {
+        
+        SortedMap<String, VmwareVirtualMachineInfo> map =
+                new ConcurrentSkipListMap<String, VmwareVirtualMachineInfo>();
         
         /* the method below can be called in a loop to read multiple  
          * datacenters and read VMs per hosts     
@@ -1679,6 +1690,30 @@ public class VCenterDB {
             readAllVirtualMachines(host, dc, dcName);
          */
         readAllVirtualMachines(map, contrailDC, contrailDC, contrailDataCenterName);
+        
+        return map;
+    }
+    
+    public void readVirtualMachineInterfaces(VmwareVirtualMachineInfo vmInfo) 
+            throws IOException, Exception {
+        VirtualMachine vm = vmInfo.vm;
+        Network[] nets = vm.getNetworks();
+        
+        for (Network net: nets) {
+            String netName = net.getName();
+            VmwareVirtualNetworkInfo vnInfo = MainDB.getVnByName(netName);
+            if (vnInfo == null) {
+                continue;
+            }
+   
+            VmwareVirtualMachineInterfaceInfo vmiInfo = 
+                    new VmwareVirtualMachineInterfaceInfo(vmInfo, vnInfo);
+            
+            vmiInfo.setMacAddress(getVirtualMachineMacAddress(vm.getConfig(), vnInfo.getDpg()));
+            vmiInfo.setIpAddress(getVirtualMachineIpAddress(vm, vnInfo.getName()));
+            
+            vmInfo.vmiInfoMap.put(vnInfo.getUuid(), vmiInfo);
+        }
     }
     
     public void init() throws Exception{

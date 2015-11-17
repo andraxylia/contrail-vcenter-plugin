@@ -5,10 +5,11 @@ import com.vmware.vim25.VirtualMachineRuntimeInfo;
 import com.vmware.vim25.VirtualMachineToolsRunningStatus;
 import com.vmware.vim25.mo.HostSystem;
 import com.vmware.vim25.mo.Network;
-
+import java.io.IOException;
 import java.rmi.RemoteException;
 import java.util.Hashtable;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map.Entry;
 import java.util.SortedMap;
 import java.util.UUID;
@@ -18,6 +19,8 @@ import com.vmware.vim25.GuestNicInfo;
 import com.vmware.vim25.InvalidProperty;
 import com.vmware.vim25.ManagedObjectReference;
 import com.vmware.vim25.RuntimeFault;
+import net.juniper.contrail.api.ApiPropertyBase;
+import net.juniper.contrail.api.ObjectReference;
 import net.juniper.contrail.api.types.VirtualMachine;
 
 public class VmwareVirtualMachineInfo {
@@ -30,7 +33,7 @@ public class VmwareVirtualMachineInfo {
     private String name;
     private String interfaceUuid;
     private VirtualMachinePowerState powerState;
-    private SortedMap<String, VmwareVirtualMachineInterfaceInfo> vmiInfoMap;
+    SortedMap<String, VmwareVirtualMachineInterfaceInfo> vmiInfoMap; // key is network UUID
     
     // Vmware objects
     com.vmware.vim25.mo.VirtualMachine vm;
@@ -96,14 +99,25 @@ public class VmwareVirtualMachineInfo {
         powerState = vmRuntimeInfo.getPowerState();
 
         vmiInfoMap = new ConcurrentSkipListMap<String, VmwareVirtualMachineInterfaceInfo>();
-        populateVmiInfoMap(vcenterDB);
+        vcenterDB.readVirtualMachineInterfaces(this);
     }
 
+    public VmwareVirtualMachineInfo(net.juniper.contrail.api.types.VirtualMachine vm) {
+        vmiInfoMap = new ConcurrentSkipListMap<String, VmwareVirtualMachineInterfaceInfo>();
+        
+        if (vm == null) {
+            return;
+        }
+        
+        apiVm = vm;
+        uuid = vm.getUuid();
+        vrouterIpAddress = vm.getDisplayName();
+    }
+    
     public VmwareVirtualMachineInfo(VCenterDB vcenterDB,
             com.vmware.vim25.mo.Datacenter dc, String dcName,
             com.vmware.vim25.mo.VirtualMachine vm, Hashtable pTable) 
                     throws Exception {
-        
 
         if (vcenterDB == null || dc == null || dcName == null
                 || vm == null || pTable == null) {
@@ -127,33 +141,6 @@ public class VmwareVirtualMachineInfo {
                 hostName, host, VCenterDB.contrailVRouterVmNamePrefix);
 
         vmiInfoMap = new ConcurrentSkipListMap<String, VmwareVirtualMachineInterfaceInfo>();
-        populateVmiInfoMap(vcenterDB);
-    }
-    
-    private void populateVmiInfoMap(VCenterDB vcenterDB) throws Exception {
-        Network[] nets = vm.getNetworks();
-        
-        for (Network net: nets) {
-            String netName = net.getName();
-            VmwareVirtualNetworkInfo vnInfo = MainDB.getVnByName(netName);
-            if (vnInfo == null) {
-                continue;
-            }
-   
-            String vmiUuid = UUID.randomUUID().toString();
-            VmwareVirtualMachineInterfaceInfo vmiInfo = 
-                    new VmwareVirtualMachineInterfaceInfo(vmiUuid);
-            vmiInfo.setVmInfo(this);
-            vmiInfo.setVnInfo(vnInfo);
-            
-            // Extract MAC address
-            macAddress = VCenterDB.getVirtualMachineMacAddress(vm.getConfig(), vnInfo.getDpg());
-            vmiInfo.setMacAddress(macAddress);
-            ipAddress = vcenterDB.getVirtualMachineIpAddress(vm, vnInfo.getName());
-            vmiInfo.setIpAddress(ipAddress);
-            
-            vmiInfoMap.put(vmiInfo.getUuid(), vmiInfo);
-        }
     }
     
     public String getHostName() {
