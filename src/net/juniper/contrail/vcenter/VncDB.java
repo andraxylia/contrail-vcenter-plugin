@@ -1491,8 +1491,29 @@ public class VncDB {
             VmwareVirtualMachineInterfaceInfo vmiInfo)
             throws IOException {
         VmwareVirtualMachineInfo vmInfo = vmiInfo.vmInfo;
+        VmwareVirtualNetworkInfo vnInfo = vmiInfo.vnInfo;
         VirtualMachine vm = vmInfo.apiVm;
-        VirtualNetwork network = vmiInfo.vnInfo.apiVn;
+        if (vm == null) {
+            
+            vm = (VirtualMachine) apiConnector.findById(
+                    VirtualMachine.class, vmInfo.getUuid());
+   
+            if (vm == null) {
+                s_logger.error("Cannot find " + vmInfo );
+                return;
+            }
+        }
+        VirtualNetwork network = vnInfo.apiVn;
+        if (network == null) {
+            
+            network = (VirtualNetwork) apiConnector.findById(
+                    VirtualNetwork.class, vnInfo.getUuid());
+   
+            if (network == null) {
+                s_logger.error("Cannot find " + vnInfo);
+                return;
+            }
+        }
         
         /*
         // find VMI matching vmUuid & vnUuid
@@ -1518,8 +1539,8 @@ public class VncDB {
         }*/
 
         // create Virtual machine interface
-        String vmInterfaceName = "vmi-" + network.getName()
-                + "-" + vm.getName();
+        String vmInterfaceName = "vmi-" + vnInfo.getName()
+                + "-" + vmInfo.getName();
        
         VirtualMachineInterface vmInterface = new VirtualMachineInterface();
         vmInterface.setDisplayName(vmInterfaceName);
@@ -1538,6 +1559,11 @@ public class VncDB {
         apiConnector.read(vmInterface);
         vmiInfo.apiVmi = vmInterface;
         s_logger.debug("Created " + vmiInfo);
+        
+        /*
+        if (vmiInfo.vnInfo.getExternalIpam() == false) {
+            updateInstanceIp(vmiInfo);
+        }*/
     }
 
     public void deleteVirtualMachineInterface(
@@ -1547,6 +1573,13 @@ public class VncDB {
             s_logger.error("Cannot delete VMI: null argument");
             throw new IllegalArgumentException("Null arguments");
         }
+        
+        VmwareVirtualNetworkInfo vnInfo = vmiInfo.getVnInfo();
+        
+        if (vnInfo.getExternalIpam() == false) {
+            deleteInstanceIp(vmiInfo);
+        }
+ 
         apiConnector.delete(vmiInfo.apiVmi);
         vmiInfo.apiVmi = null;
         s_logger.info("Deleted " + vmiInfo);
@@ -1578,7 +1611,7 @@ public class VncDB {
                 vmIpAddress);
     }
 
-    public void deleteInstanceIp(
+    private void deleteInstanceIp(
             VmwareVirtualMachineInterfaceInfo vmiInfo)
             throws IOException {
         

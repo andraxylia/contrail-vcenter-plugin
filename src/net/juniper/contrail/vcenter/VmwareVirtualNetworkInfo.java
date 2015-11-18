@@ -1,5 +1,6 @@
 package net.juniper.contrail.vcenter;
 
+import java.io.IOException;
 import java.rmi.RemoteException;
 import java.util.HashMap;
 import java.util.Hashtable;
@@ -29,7 +30,7 @@ import com.vmware.vim25.mo.util.PropertyCollectorUtil;
 
 import net.juniper.contrail.api.types.VirtualNetwork;
 
-public class VmwareVirtualNetworkInfo {
+public class VmwareVirtualNetworkInfo extends VCenterObject {
     private String uuid; // required attribute, key for this object
     private String name;
     private short isolatedVlanId;
@@ -80,6 +81,7 @@ public class VmwareVirtualNetworkInfo {
         apiVn = vn;
         uuid = vn.getUuid();
         name = vn.getName();
+        vmInfo = new ConcurrentSkipListMap<String, VmwareVirtualMachineInfo>();
         //isolatedVlanId = ?
         // primaryVlanId = ?;
         externalIpam = vn.getExternalIpam();
@@ -92,6 +94,8 @@ public class VmwareVirtualNetworkInfo {
     }
     
     public VmwareVirtualNetworkInfo(Event event,  VCenterDB vcenterDB) throws Exception {
+        vmInfo = new ConcurrentSkipListMap<String, VmwareVirtualMachineInfo>();
+        
         if (event.getDatacenter() != null) {
             dcName = event.getDatacenter().getName();
             dc = vcenterDB.getVmwareDatacenter(dcName);
@@ -174,7 +178,7 @@ public class VmwareVirtualNetworkInfo {
                 || ipPools == null || pvlanMapArray == null) {
             throw new IllegalArgumentException();
         }
-        
+        vmInfo = new ConcurrentSkipListMap<String, VmwareVirtualMachineInfo>();
         this.dc = dc;
         this.dcName = dcName;
         this.dpg = dpg;
@@ -403,4 +407,86 @@ public class VmwareVirtualNetworkInfo {
         }
         return true;
     }
+    
+    // change the method below to use Observer pattern and get rid of the Vnc param
+    @Override
+    void create(VncDB vncDB) throws Exception {
+        
+        MainDB.vmwareVNs.put(uuid, this);
+        
+        vncDB.updateVirtualNetwork(this);
+    }
+    
+    @Override
+    void update(VCenterObject obj, VncDB vncDB) 
+                    throws Exception {
+        
+        VmwareVirtualNetworkInfo newVnInfo = (VmwareVirtualNetworkInfo)obj;
+        
+        if (newVnInfo.name != null) {
+            name = newVnInfo.name;
+        }
+        if (newVnInfo.isolatedVlanId != 0) {
+            isolatedVlanId = newVnInfo.isolatedVlanId;
+        }
+        
+        if (newVnInfo.primaryVlanId != 0) {
+            primaryVlanId = newVnInfo.primaryVlanId;
+        }
+        
+        if (newVnInfo.subnetAddress != null) {
+            subnetAddress = newVnInfo.subnetAddress;
+        }
+        
+        if (newVnInfo.subnetMask != null) {
+            subnetAddress = newVnInfo.subnetMask;
+        }
+        
+        if (newVnInfo.gatewayAddress != null) {
+            gatewayAddress = newVnInfo.gatewayAddress;
+        }
+        if (newVnInfo.ipPoolEnabled != false) {
+            ipPoolEnabled = newVnInfo.ipPoolEnabled;
+        }
+        
+        if (newVnInfo.range != null) {
+            range = newVnInfo.range;
+        }
+        if (newVnInfo.externalIpam != false) {
+            externalIpam = newVnInfo.externalIpam;
+        }
+        
+        if (newVnInfo.net != null) {
+            net = newVnInfo.net;
+        }
+        if (newVnInfo.dpg != null) {
+            dpg = newVnInfo.dpg;
+        }
+        if (newVnInfo.portSetting != null) {
+            portSetting = newVnInfo.portSetting;
+        }
+        if (newVnInfo.dvs != null) {
+            dvs = newVnInfo.dvs;
+        }
+        
+        if (newVnInfo.dvsName != null) {
+            dvsName = newVnInfo.dvsName;
+        }
+        
+        // notify observers
+        // nothing do to for now since
+        // for networks we do not update the API server
+    }
+    
+    @Override
+    void delete(VncDB vncDB) 
+            throws Exception {
+        
+        vncDB.deleteVirtualNetwork(this);
+        
+        if (MainDB.vmwareVNs.containsKey(uuid)) {
+            MainDB.vmwareVNs.remove(uuid);
+        }
+    }
+
 }

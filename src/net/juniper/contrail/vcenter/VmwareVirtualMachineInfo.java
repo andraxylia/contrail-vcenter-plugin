@@ -10,6 +10,7 @@ import java.rmi.RemoteException;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.SortedMap;
 import java.util.UUID;
@@ -23,7 +24,7 @@ import net.juniper.contrail.api.ApiPropertyBase;
 import net.juniper.contrail.api.ObjectReference;
 import net.juniper.contrail.api.types.VirtualMachine;
 
-public class VmwareVirtualMachineInfo {
+public class VmwareVirtualMachineInfo extends VCenterObject {
     private String uuid; // required attribute, key for this object
     ManagedObjectReference hmor;
     private String hostName;
@@ -332,4 +333,97 @@ public class VmwareVirtualMachineInfo {
         
         return false;
     }
+    
+    @Override
+    void create(VncDB vncDB) throws Exception {
+        if (ignore()) {
+            return;
+        }
+        vncDB.updateVirtualMachine(this);
+        
+        MainDB.sync(new ConcurrentSkipListMap<String, VmwareVirtualMachineInterfaceInfo>(), 
+                vmiInfoMap);
+        
+        MainDB.vmwareVMs.put(uuid, this);
+        
+    }
+    
+    @Override
+    void update(
+            VCenterObject obj,
+            VncDB vncDB) throws Exception {
+        
+        VmwareVirtualMachineInfo newVmInfo = (VmwareVirtualMachineInfo)obj;
+        if (newVmInfo.ignore()) {
+            return;
+        } 
+        
+        if (newVmInfo.hostName != null) {
+            hostName = newVmInfo.hostName;
+        }
+        if (newVmInfo.vrouterIpAddress != null) {
+            vrouterIpAddress = newVmInfo.vrouterIpAddress;
+        }
+        if (newVmInfo.macAddress != null) {
+            macAddress = newVmInfo.macAddress;
+        }
+        if (newVmInfo.ipAddress != null) {
+            ipAddress = newVmInfo.ipAddress;
+        }
+        if (newVmInfo.name != null) {
+            name = newVmInfo.name;
+        }
+        if (newVmInfo.powerState != null) {
+            powerState = newVmInfo.powerState;
+        }
+        if (newVmInfo.vm != null) {
+            vm = newVmInfo.vm;
+        }
+        if (newVmInfo.host != null) {
+            host = newVmInfo.host;
+        }
+        if (newVmInfo.dvs != null) {
+            dvs = newVmInfo.dvs;
+        }
+        if (newVmInfo.dvsName != null) {
+            dvsName = newVmInfo.dvsName;
+        }
+        if (newVmInfo.dc != null) {
+            dc = newVmInfo.dc;
+        }
+        if (newVmInfo.dcName != null) {
+            dcName = newVmInfo.dcName;
+        }
+        if (newVmInfo.apiVm != null) {
+            apiVm = newVmInfo.apiVm;
+        }
+        if (apiVm != null) {
+            newVmInfo.apiVm = apiVm;
+        }
+        
+        // in what cases do we really update
+        //vncDB.updateVirtualMachine(this);
+        
+        MainDB.sync(vmiInfoMap, newVmInfo.vmiInfoMap);
+    }
+
+    @Override
+    void delete(VncDB vncDB)
+            throws IOException {
+        // loop through all the networks in which
+        // this VM participates and delete VMIs and IP Instances
+        for (Map.Entry<String, VmwareVirtualMachineInterfaceInfo> entry: 
+                 vmiInfoMap.entrySet()) {
+            VmwareVirtualMachineInterfaceInfo vmiInfo = entry.getValue();
+            
+            //VRouterNotifier.deletePort(vmiInfo);
+            
+            vncDB.deleteVirtualMachineInterface(vmiInfo);
+        }
+        
+        if (MainDB.vmwareVMs.containsKey(uuid)) {
+            MainDB.vmwareVMs.remove(uuid);
+        }
+    }
+
 }

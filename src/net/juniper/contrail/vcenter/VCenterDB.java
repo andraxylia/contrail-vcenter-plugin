@@ -1551,7 +1551,7 @@ public class VCenterDB {
         return vm;
     }
       
-    public SortedMap<String, VmwareVirtualNetworkInfo> readAllVirtualNetworks() 
+    public SortedMap<String, VmwareVirtualNetworkInfo> readVirtualNetworks() 
             throws Exception {
 
         SortedMap<String, VmwareVirtualNetworkInfo> map =
@@ -1632,7 +1632,7 @@ public class VCenterDB {
         return map;
     }
 
-    private void readAllVirtualMachines(SortedMap<String, VmwareVirtualMachineInfo> map,
+    private void readVirtualMachines(SortedMap<String, VmwareVirtualMachineInfo> map,
             ManagedEntity me, 
             Datacenter dc, String dcName) 
                 throws Exception {
@@ -1677,7 +1677,7 @@ public class VCenterDB {
         }
     }
     
-    SortedMap<String, VmwareVirtualMachineInfo> readAllVirtualMachines() 
+    SortedMap<String, VmwareVirtualMachineInfo> readVirtualMachines() 
             throws IOException, Exception {
         
         SortedMap<String, VmwareVirtualMachineInfo> map =
@@ -1689,7 +1689,7 @@ public class VCenterDB {
          * for (host: dc)
             readAllVirtualMachines(host, dc, dcName);
          */
-        readAllVirtualMachines(map, contrailDC, contrailDC, contrailDataCenterName);
+        readVirtualMachines(map, contrailDC, contrailDC, contrailDataCenterName);
         
         return map;
     }

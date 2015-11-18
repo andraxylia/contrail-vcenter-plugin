@@ -109,13 +109,16 @@ public class VCenterEventHandler implements Runnable {
     }
 
     private void handleVmUpdateEvent() throws Exception {
-        VmwareVirtualMachineInfo vmInfo = new VmwareVirtualMachineInfo(event, vcenterDB);
+        VmwareVirtualMachineInfo newVmInfo = new VmwareVirtualMachineInfo(event, vcenterDB);
          
-        if (vmInfo.ignore()) {
-            return;
-        } 
+       
+        VmwareVirtualMachineInfo oldVmInfo = MainDB.getVmById(newVmInfo.getUuid());
         
-        MainDB.updateVirtualMachine(vmInfo);
+        if (oldVmInfo != null) {
+            oldVmInfo.update(newVmInfo, vncDB);
+        } else {
+            // log some error
+        }
     }
 
     private void handleVmDeleteEvent() throws Exception {
@@ -125,22 +128,35 @@ public class VCenterEventHandler implements Runnable {
             return;
         }
   
-        MainDB.deleteVirtualMachine(vmInfo);
+        vmInfo.delete(vncDB);
     }
 
     private void handleNetworkCreateEvent() throws Exception {
-        handleNetworkUpdateEvent();
-    }
-
-    private void handleNetworkUpdateEvent() throws Exception {
-        VmwareVirtualNetworkInfo vnInfo = 
+        VmwareVirtualNetworkInfo newVnInfo = 
                 new VmwareVirtualNetworkInfo(event, vcenterDB);
         
-        if (vnInfo.ignore()) {
+        if (newVnInfo.ignore()) {
             return;
         }
 
-        MainDB.updateVirtualNetwork(vnInfo);
+        newVnInfo.create(vncDB);
+    }
+
+    private void handleNetworkUpdateEvent() throws Exception {
+        VmwareVirtualNetworkInfo newVnInfo = 
+                new VmwareVirtualNetworkInfo(event, vcenterDB);
+        
+        if (newVnInfo.ignore()) {
+            return;
+        }
+
+        VmwareVirtualNetworkInfo oldVnInfo = MainDB.getVnByName(newVnInfo.getName());
+        
+        if (oldVnInfo != null) {
+            oldVnInfo.update(newVnInfo, vncDB);
+        } else {
+            // log some error
+        }
     }
 
     private void handleNetworkDeleteEvent() throws Exception {
@@ -150,8 +166,7 @@ public class VCenterEventHandler implements Runnable {
         if (vnInfo.ignore()) {
             return;
         }
- 
-        MainDB.deleteVirtualNetwork(vnInfo);
+        vnInfo.delete(vncDB);
     }
 
     private void handleEvent(Event event) throws IOException {
