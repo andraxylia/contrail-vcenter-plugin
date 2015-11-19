@@ -59,7 +59,7 @@ public class MainDB {
             Integer cmp = newEntry.getKey().compareTo(oldEntry.getKey());
             try {
                 if (cmp == 0) {
-                    oldEntry.getValue().update(newEntry.getValue(), vncDB);
+                    newEntry.getValue().sync(oldEntry.getValue(), vncDB);
                     oldEntry = oldIter.hasNext()? oldIter.next() : null;
                     newEntry = newIter.hasNext()? newIter.next() : null;
                 } else if (cmp < 0) {
@@ -67,7 +67,6 @@ public class MainDB {
                     newEntry = newIter.hasNext()? newIter.next() : null;
                 } else {
                     oldEntry.getValue().delete(vncDB);
-                    oldIter.remove();
                     oldEntry = oldIter.hasNext()? oldIter.next() : null;
                 }
             } catch (Exception e) {
@@ -104,20 +103,22 @@ public class MainDB {
         vmwareVNs.clear();
         vmwareVMs.clear();
         
-        vmwareVNs = vncDB.readVirtualNetworks();
+        vmwareVNs = vcenterDB.readVirtualNetworks();
+        SortedMap<String, VmwareVirtualNetworkInfo> oldVNs = vncDB.readVirtualNetworks();;
         
         if (mode == "vcenter-only") {
-            SortedMap<String, VmwareVirtualNetworkInfo> newVNs = vcenterDB.readVirtualNetworks();
-            sync(vmwareVNs, newVNs);            
+            
+            
+            sync(oldVNs, vmwareVNs);
         }
         
-        printInfo();
         
-        vmwareVMs = vncDB.readVirtualMachines();
       
         if (mode == "vcenter-only") {
-            SortedMap<String, VmwareVirtualMachineInfo> newVMs = vcenterDB.readVirtualMachines();
-            sync(vmwareVMs, newVMs);
+            vmwareVMs = vcenterDB.readVirtualMachines();
+            
+            SortedMap<String, VmwareVirtualMachineInfo> oldVMs = vncDB.readVirtualMachines();
+            sync(oldVMs, vmwareVMs);
         }
 
         printInfo();

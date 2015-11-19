@@ -1687,7 +1687,7 @@ public class VCenterDB {
          * datacenters and read VMs per hosts     
          * for (dc: datacenters)
          * for (host: dc)
-            readAllVirtualMachines(host, dc, dcName);
+            readVirtualMachines(map, host, dc, dcName);
          */
         readVirtualMachines(map, contrailDC, contrailDC, contrailDataCenterName);
         
@@ -1703,6 +1703,7 @@ public class VCenterDB {
             String netName = net.getName();
             VmwareVirtualNetworkInfo vnInfo = MainDB.getVnByName(netName);
             if (vnInfo == null) {
+                // log error
                 continue;
             }
    

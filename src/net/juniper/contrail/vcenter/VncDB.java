@@ -1350,54 +1350,53 @@ public class VncDB {
         vn.setParent(vCenterProject);
         vn.setExternalIpam(vnInfo.getExternalIpam());
         
-         //TODO
-         /*
-         SubnetUtils subnetUtils = new SubnetUtils(vnInfo.getSubnetAddress(), vnInfo.getSubnetMask());
-         String cidr = subnetUtils.getInfo().getCidrSignature();
-         String[] addr_pair = cidr.split("\\/");
+        /*
+        SubnetUtils subnetUtils = new SubnetUtils(vnInfo.getSubnetAddress(), vnInfo.getSubnetMask());
+        String cidr = subnetUtils.getInfo().getCidrSignature();
+        String[] addr_pair = cidr.split("\\/");
         
-         List<VnSubnetsType.IpamSubnetType.AllocationPoolType> allocation_pools = null;
-         if (ipPoolEnabled == true && !range.isEmpty()) {
-             String[] pools = range.split("\\#");
-             if (pools.length == 2) {
-                 allocation_pools = new ArrayList<VnSubnetsType.IpamSubnetType.AllocationPoolType>();
-                 String start = (pools[0]).replace(" ","");
-                 String num   = (pools[1]).replace(" ","");
-                 String[] bytes = start.split("\\.");
-                 String end   = bytes[0] + "." + bytes[1] + "." + bytes[2] + "."
-                                + Integer.toString(Integer.parseInt(bytes[3]) +  Integer.parseInt(num) - 1);
-                 s_logger.info("Subnet IP Range :  Start:"  + start + " End:" + end);
-                 VnSubnetsType.IpamSubnetType.AllocationPoolType pool1 = new
+        List<VnSubnetsType.IpamSubnetType.AllocationPoolType> allocation_pools = null;
+        if (ipPoolEnabled == true && !range.isEmpty()) {
+            String[] pools = range.split("\\#");
+            if (pools.length == 2) {
+                allocation_pools = new ArrayList<VnSubnetsType.IpamSubnetType.AllocationPoolType>();
+                String start = (pools[0]).replace(" ","");
+                String num   = (pools[1]).replace(" ","");
+                String[] bytes = start.split("\\.");
+                String end   = bytes[0] + "." + bytes[1] + "." + bytes[2] + "."
+                               + Integer.toString(Integer.parseInt(bytes[3]) +  Integer.parseInt(num) - 1);
+                s_logger.info("Subnet IP Range :  Start:"  + start + " End:" + end);
+                VnSubnetsType.IpamSubnetType.AllocationPoolType pool1 = new
                         VnSubnetsType.IpamSubnetType.AllocationPoolType(start, end);
-                 allocation_pools.add(pool1);
-             }
-         }
+                allocation_pools.add(pool1);
+            }
+        }
         
-         VnSubnetsType subnet = new VnSubnetsType();
-         subnet.addIpamSubnets(new VnSubnetsType.IpamSubnetType(
-                                    new SubnetType(addr_pair[0],
-                                        Integer.parseInt(addr_pair[1])),
-                                        gatewayAddr,
-                                        null,                          // dns_server_address
-                                        UUID.randomUUID().toString(),  // subnet_uuid
-                                        true,                          // enable_dhcp
-                                        null,                          // dns_nameservers
-                                        allocation_pools,
-                                        true,                          // addr_from_start
-                                        null,                          // dhcp_options_list
-                                        null,                          // host_routes
-                                        vn.getName() + "-subnet"));
+        VnSubnetsType subnet = new VnSubnetsType();
+        subnet.addIpamSubnets(new VnSubnetsType.IpamSubnetType(
+                                   new SubnetType(addr_pair[0],
+                                       Integer.parseInt(addr_pair[1])),
+                                       gatewayAddr,
+                                       null,                          // dns_server_address
+                                       UUID.randomUUID().toString(),  // subnet_uuid
+                                       true,                          // enable_dhcp
+                                       null,                          // dns_nameservers
+                                       allocation_pools,
+                                       true,                          // addr_from_start
+                                       null,                          // dhcp_options_list
+                                       null,                          // host_routes
+                                       vn.getName() + "-subnet"));
         
-         vn.setNetworkIpam(vCenterIpam, subnet);
-         */
-         if (create) {
-             s_logger.info("Create " + vnInfo);
-             apiConnector.create(vn);
-         } else {
-             s_logger.info("Update " + vnInfo);
-             apiConnector.update(vn);
-         }
-         //apiConnector.read(vn);
+        vn.setNetworkIpam(vCenterIpam, subnet);
+        */
+        if (create) {
+            s_logger.info("Create " + vnInfo);
+            apiConnector.create(vn);
+        } else {
+            s_logger.info("Update " + vnInfo);
+            apiConnector.update(vn);
+        }
+        //apiConnector.read(vn);
     }
 
     public void deleteVirtualNetwork(VmwareVirtualNetworkInfo vnInfo)
@@ -1484,7 +1483,7 @@ public class VncDB {
         }
         apiConnector.delete(vmInfo.apiVm);
         vmInfo.apiVm = null;
-        s_logger.info("Deleted " + vmInfo.apiVm);
+        s_logger.info("Deleted " + vmInfo);
     }
 
     public void updateVirtualMachineInterface(
@@ -1545,6 +1544,7 @@ public class VncDB {
         VirtualMachineInterface vmInterface = new VirtualMachineInterface();
         vmInterface.setDisplayName(vmInterfaceName);
         String vmiUuid = UUID.randomUUID().toString();
+        vmiInfo.setUuid(vmiUuid);
         vmInterface.setUuid(vmiUuid);
         vmInterface.setName(vmiUuid);
         vmInterface.setParent(vCenterProject);
@@ -1574,12 +1574,15 @@ public class VncDB {
             throw new IllegalArgumentException("Null arguments");
         }
         
-        VmwareVirtualNetworkInfo vnInfo = vmiInfo.getVnInfo();
-        
-        if (vnInfo.getExternalIpam() == false) {
-            deleteInstanceIp(vmiInfo);
+        if (vmiInfo.apiVmi == null) {
+            vmiInfo.apiVmi = (VirtualMachineInterface) apiConnector.findById(
+                    VirtualMachineInterface.class, vmiInfo.getUuid());
+            if (vmiInfo.apiVmi == null) {
+                s_logger.error("Cannot delete VMI, it does not exist " + vmiInfo);
+                return;
+            }
         }
- 
+        
         apiConnector.delete(vmiInfo.apiVmi);
         vmiInfo.apiVmi = null;
         s_logger.info("Deleted " + vmiInfo);
@@ -1591,11 +1594,13 @@ public class VncDB {
         VirtualNetwork network = vmiInfo.vnInfo.apiVn;
         VirtualMachine vm = vmiInfo.vmInfo.apiVm;
         VirtualMachineInterface vmIntf = vmiInfo.apiVmi;
-        String vmIpAddress = "0.0.0.0";
         String instanceIpName = "ip-" + network.getName() + "-" + vmiInfo.vmInfo.getName() ;
         String instIpUuid = UUID.randomUUID().toString();
         
         InstanceIp instanceIp = new InstanceIp();
+        if (vmiInfo.getIpAddress() != null) {
+            instanceIp.setAddress(vmiInfo.getIpAddress());
+        }
         instanceIp.setDisplayName(instanceIpName);
         instanceIp.setUuid(instIpUuid);
         instanceIp.setName(instIpUuid);
@@ -1607,11 +1612,12 @@ public class VncDB {
 
         vmiInfo.apiInstanceIp = instanceIp;
         vmiInfo.setIpAddress(instanceIp.getAddress());
+        
         s_logger.debug("Created instanceIP:" + instanceIp.getName() + ": " +
-                vmIpAddress);
+                instanceIp.getAddress());
     }
 
-    private void deleteInstanceIp(
+    public void deleteInstanceIp(
             VmwareVirtualMachineInterfaceInfo vmiInfo)
             throws IOException {
         

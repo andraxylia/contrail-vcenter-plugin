@@ -44,9 +44,13 @@ public class VRouterNotifier {
                 vrouterApiMap.put(vrouterIpAddress, vrouterApi);
             }
             if (vmInfo.isPoweredOnState()) {
+                String ipAddr = vmiInfo.getIpAddress();
+                if (ipAddr == null) {
+                    ipAddr = "0.0.0.0";
+                }
                 boolean ret = vrouterApi.AddPort(UUID.fromString(vmiInfo.getUuid()),
                         UUID.fromString(vmInfo.getUuid()), vmiInfo.getUuid(),
-                        InetAddress.getByName(vmiInfo.getIpAddress()),
+                        InetAddress.getByName(ipAddr),
                         Utils.parseMacAddress(vmiInfo.getMacAddress()),
                         UUID.fromString(vnInfo.getUuid()),
                         vnInfo.getIsolatedVlanId(),

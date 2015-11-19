@@ -102,7 +102,9 @@ public class VCenterEventHandler implements Runnable {
 
     private void handleVmCreateEvent() throws Exception {
         
-        handleVmUpdateEvent();
+        VmwareVirtualMachineInfo newVmInfo = new VmwareVirtualMachineInfo(event, vcenterDB);
+        
+        newVmInfo.create(vncDB);
         
         // add a watch on this Vm guest OS to be notified of further changes
         watchVm();
@@ -135,10 +137,6 @@ public class VCenterEventHandler implements Runnable {
         VmwareVirtualNetworkInfo newVnInfo = 
                 new VmwareVirtualNetworkInfo(event, vcenterDB);
         
-        if (newVnInfo.ignore()) {
-            return;
-        }
-
         newVnInfo.create(vncDB);
     }
 
@@ -146,10 +144,6 @@ public class VCenterEventHandler implements Runnable {
         VmwareVirtualNetworkInfo newVnInfo = 
                 new VmwareVirtualNetworkInfo(event, vcenterDB);
         
-        if (newVnInfo.ignore()) {
-            return;
-        }
-
         VmwareVirtualNetworkInfo oldVnInfo = MainDB.getVnByName(newVnInfo.getName());
         
         if (oldVnInfo != null) {
@@ -160,12 +154,9 @@ public class VCenterEventHandler implements Runnable {
     }
 
     private void handleNetworkDeleteEvent() throws Exception {
+        
         VmwareVirtualNetworkInfo vnInfo = 
                 new VmwareVirtualNetworkInfo(event, vcenterDB);
-        
-        if (vnInfo.ignore()) {
-            return;
-        }
         vnInfo.delete(vncDB);
     }
 

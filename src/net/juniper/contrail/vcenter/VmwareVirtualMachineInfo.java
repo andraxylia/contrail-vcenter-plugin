@@ -341,8 +341,10 @@ public class VmwareVirtualMachineInfo extends VCenterObject {
         }
         vncDB.updateVirtualMachine(this);
         
-        MainDB.sync(new ConcurrentSkipListMap<String, VmwareVirtualMachineInterfaceInfo>(), 
-                vmiInfoMap);
+        //TODO loop through all the vmi and call vmiInfo.create
+        
+        /* bad MainDB.sync(new ConcurrentSkipListMap<String, VmwareVirtualMachineInterfaceInfo>(), 
+                vmiInfoMap);*/
         
         MainDB.vmwareVMs.put(uuid, this);
         
@@ -408,22 +410,35 @@ public class VmwareVirtualMachineInfo extends VCenterObject {
     }
 
     @Override
+    void sync(
+            VCenterObject obj,
+            VncDB vncDB) throws Exception {
+        
+        VmwareVirtualMachineInfo oldVmInfo = (VmwareVirtualMachineInfo)obj;
+         
+        // in what cases do we really update the VM
+        //vncDB.updateVirtualMachine(this);
+        
+        MainDB.sync(oldVmInfo.vmiInfoMap, this.vmiInfoMap);
+    }
+
+    @Override
     void delete(VncDB vncDB)
             throws IOException {
+        
         // loop through all the networks in which
-        // this VM participates and delete VMIs and IP Instances
+        // this VM participates and delete VMIs
         for (Map.Entry<String, VmwareVirtualMachineInterfaceInfo> entry: 
                  vmiInfoMap.entrySet()) {
             VmwareVirtualMachineInterfaceInfo vmiInfo = entry.getValue();
+            vmiInfo.delete(vncDB);
             
-            //VRouterNotifier.deletePort(vmiInfo);
-            
-            vncDB.deleteVirtualMachineInterface(vmiInfo);
         }
+        
+        vncDB.deleteVirtualMachine(this);
         
         if (MainDB.vmwareVMs.containsKey(uuid)) {
             MainDB.vmwareVMs.remove(uuid);
         }
     }
-
 }
