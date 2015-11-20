@@ -92,9 +92,7 @@ public class MainDB {
             newEntry = newIter.hasNext()? newIter.next() : null;
         }
     }
-
-    
-
+  
     public static void init(VCenterDB _vcenterDB, VncDB _vncDB, String mode) 
             throws Exception {
         vcenterDB = _vcenterDB;
@@ -104,23 +102,19 @@ public class MainDB {
         vmwareVMs.clear();
         
         vmwareVNs = vcenterDB.readVirtualNetworks();
-        SortedMap<String, VmwareVirtualNetworkInfo> oldVNs = vncDB.readVirtualNetworks();;
+        SortedMap<String, VmwareVirtualNetworkInfo> oldVNs = vncDB.readVirtualNetworks();
         
         if (mode == "vcenter-only") {
-            
-            
             sync(oldVNs, vmwareVNs);
         }
         
+        vmwareVMs = vcenterDB.readVirtualMachines();
         
-      
+        SortedMap<String, VmwareVirtualMachineInfo> oldVMs = vncDB.readVirtualMachines();
         if (mode == "vcenter-only") {
-            vmwareVMs = vcenterDB.readVirtualMachines();
-            
-            SortedMap<String, VmwareVirtualMachineInfo> oldVMs = vncDB.readVirtualMachines();
             sync(oldVMs, vmwareVMs);
         }
-
+       
         printInfo();
     }
     

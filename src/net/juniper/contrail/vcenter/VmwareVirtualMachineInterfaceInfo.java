@@ -102,10 +102,10 @@ public class VmwareVirtualMachineInterfaceInfo extends VCenterObject {
     @Override
     void create(VncDB vncDB) throws Exception {
         
-        vncDB.updateVirtualMachineInterface(this);
+        vncDB.createVirtualMachineInterface(this);
         
         if (vnInfo.getExternalIpam() == false) {
-            vncDB.updateInstanceIp(this);
+            vncDB.createInstanceIp(this);
         }
         
         // comment temporarily for testing
@@ -160,6 +160,14 @@ public class VmwareVirtualMachineInterfaceInfo extends VCenterObject {
         
         VmwareVirtualMachineInterfaceInfo oldVmiInfo = (VmwareVirtualMachineInterfaceInfo)obj;
         
+        if (apiVmi == null && oldVmiInfo.apiVmi != null) {
+            apiVmi = oldVmiInfo.apiVmi;
+        }
+        
+        if (apiInstanceIp == null && oldVmiInfo.apiInstanceIp != null) {
+            apiInstanceIp = oldVmiInfo.apiInstanceIp;
+        }
+        
         // workaround for vmware sending null address after restart
         if (ipAddress == null && oldVmiInfo.ipAddress != null) {
             ipAddress = oldVmiInfo.ipAddress;
@@ -172,17 +180,21 @@ public class VmwareVirtualMachineInterfaceInfo extends VCenterObject {
         if (uuid == null && oldVmiInfo.uuid != null) {
             uuid = oldVmiInfo.uuid;
         }
-        
-        if (equals(oldVmiInfo)) {
-            // nothing has changed
-            return;
-        }
-        
+               
         boolean updateVRouterNeeded = false;
         
         if (ipAddress != null && !ipAddress.equals(oldVmiInfo.ipAddress)) {
+            vncDB.deleteInstanceIp(this);
+            vncDB.createInstanceIp(this);
             updateVRouterNeeded = true;
         }
+        
+        if ((vnInfo.getExternalIpam() == false || (ipAddress != null))
+                && (apiInstanceIp == null)) {
+            vncDB.createInstanceIp(this);
+            updateVRouterNeeded = true;
+        }
+        
         if (macAddress != null && !macAddress.equals(oldVmiInfo.macAddress)) {
             updateVRouterNeeded = true;
         }
@@ -208,10 +220,8 @@ public class VmwareVirtualMachineInterfaceInfo extends VCenterObject {
             VRouterNotifier.deletePort(this);
         }
         */
-        
-        //if (vnInfo.getExternalIpam() == false) {
-            vncDB.deleteInstanceIp(this);
-        //}
+
+        vncDB.deleteInstanceIp(this);
  
         vncDB.deleteVirtualMachineInterface(this);
         

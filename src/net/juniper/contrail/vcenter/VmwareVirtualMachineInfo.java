@@ -61,11 +61,6 @@ public class VmwareVirtualMachineInfo extends VCenterObject {
         vmiInfoMap = new ConcurrentSkipListMap<String, VmwareVirtualMachineInterfaceInfo>();
     }
 
-    public VmwareVirtualMachineInfo(String uuid) {
-        this.uuid = uuid;
-        vmiInfoMap = new ConcurrentSkipListMap<String, VmwareVirtualMachineInterfaceInfo>();
-    }
-
     public VmwareVirtualMachineInfo(Event event,  VCenterDB vcenterDB) throws Exception {
         if (event.getDatacenter() != null) {
             dcName = event.getDatacenter().getName();
@@ -339,15 +334,15 @@ public class VmwareVirtualMachineInfo extends VCenterObject {
         if (ignore()) {
             return;
         }
-        vncDB.updateVirtualMachine(this);
-        
-        //TODO loop through all the vmi and call vmiInfo.create
-        
-        /* bad MainDB.sync(new ConcurrentSkipListMap<String, VmwareVirtualMachineInterfaceInfo>(), 
-                vmiInfoMap);*/
-        
-        MainDB.vmwareVMs.put(uuid, this);
-        
+        vncDB.createVirtualMachine(this);
+        for (Map.Entry<String, VmwareVirtualMachineInterfaceInfo> entry: 
+            vmiInfoMap.entrySet()) {
+           VmwareVirtualMachineInterfaceInfo vmiInfo = entry.getValue();
+           vmiInfo.create(vncDB);
+           
+       }
+       
+       MainDB.vmwareVMs.put(uuid, this); 
     }
     
     @Override
@@ -415,7 +410,11 @@ public class VmwareVirtualMachineInfo extends VCenterObject {
             VncDB vncDB) throws Exception {
         
         VmwareVirtualMachineInfo oldVmInfo = (VmwareVirtualMachineInfo)obj;
-         
+        
+        if (apiVm == null && oldVmInfo.apiVm != null) {
+            apiVm = oldVmInfo.apiVm;
+        }
+        
         // in what cases do we really update the VM
         //vncDB.updateVirtualMachine(this);
         
@@ -426,8 +425,6 @@ public class VmwareVirtualMachineInfo extends VCenterObject {
     void delete(VncDB vncDB)
             throws IOException {
         
-        // loop through all the networks in which
-        // this VM participates and delete VMIs
         for (Map.Entry<String, VmwareVirtualMachineInterfaceInfo> entry: 
                  vmiInfoMap.entrySet()) {
             VmwareVirtualMachineInterfaceInfo vmiInfo = entry.getValue();
