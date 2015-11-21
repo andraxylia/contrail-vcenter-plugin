@@ -38,7 +38,7 @@ public class VmwareVirtualNetworkInfo extends VCenterObject {
     private short isolatedVlanId;
     private short primaryVlanId;
     private SortedMap<String, VmwareVirtualMachineInfo> vmInfo;
-    SortedMap<String, VmwareVirtualMachineInterfaceInfo> vmiInfoMap;
+    private SortedMap<String, VmwareVirtualMachineInterfaceInfo> vmiInfoMap; // key is MAC address
     private String subnetAddress;
     private String subnetMask;
     private String gatewayAddress;
@@ -338,6 +338,22 @@ public class VmwareVirtualNetworkInfo extends VCenterObject {
         this.dpg = dpg;
     }
     
+    public void created(VmwareVirtualMachineInterfaceInfo vmiInfo) {
+        vmiInfoMap.put(vmiInfo.getMacAddress(), vmiInfo);
+    }
+    
+    public void updated(VmwareVirtualMachineInterfaceInfo vmiInfo) {
+        if (!vmiInfoMap.containsKey(vmiInfo.getMacAddress())) {
+            vmiInfoMap.put(vmiInfo.getMacAddress(), vmiInfo);
+        }
+    }
+
+    public void deleted(VmwareVirtualMachineInterfaceInfo vmiInfo) {
+        if (vmiInfoMap.containsKey(vmiInfo.getMacAddress())) {
+            vmiInfoMap.remove(vmiInfo.getMacAddress());
+        }
+    }
+
     public boolean equals(VmwareVirtualNetworkInfo vn) {
         if (vn == null) {
             return false;
@@ -415,9 +431,8 @@ public class VmwareVirtualNetworkInfo extends VCenterObject {
         if (ignore()) {
             return;
         }
-        
-        MainDB.vmwareVNs.put(uuid, this);
         vncDB.createVirtualNetwork(this);
+        MainDB.deleted(this);
     }
     
     @Override
@@ -511,8 +526,6 @@ public class VmwareVirtualNetworkInfo extends VCenterObject {
         
         vncDB.deleteVirtualNetwork(this);
         
-        if (MainDB.vmwareVNs.containsKey(uuid)) {
-            MainDB.vmwareVNs.remove(uuid);
-        }
+        MainDB.deleted(this);
     }
 }

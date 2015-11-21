@@ -1711,9 +1711,14 @@ public class VCenterDB {
                     new VmwareVirtualMachineInterfaceInfo(vmInfo, vnInfo);
             
             vmiInfo.setMacAddress(getVirtualMachineMacAddress(vm.getConfig(), vnInfo.getDpg()));
-            vmiInfo.setIpAddress(getVirtualMachineIpAddress(vm, vnInfo.getName()));
-            
-            vmInfo.vmiInfoMap.put(vnInfo.getUuid(), vmiInfo);
+            if (vnInfo.getExternalIpam() 
+                    && vmInfo.getToolsRunningStatus().equals(VirtualMachineToolsRunningStatus.guestToolsRunning)) {
+                // static IP Address & vmWare tools installed
+                // see if we can read it from Guest Nic Info
+                vmiInfo.setIpAddress(getVirtualMachineIpAddress(vm, vnInfo.getName()));
+            }
+
+            vmInfo.created(vmiInfo);
         }
     }
     

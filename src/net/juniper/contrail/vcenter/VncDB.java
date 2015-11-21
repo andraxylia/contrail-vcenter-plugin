@@ -1419,14 +1419,12 @@ public class VncDB {
         VirtualMachine vm = new VirtualMachine();
         vmInfo.apiVm = vm;
         vm.setName(vmUuid);
-        vm.setDisplayName(vmInfo.getName());
         vm.setUuid(vmUuid);
 
         // Encode VRouter IP address in display name
-        /*
         if (vmInfo.getVrouterIpAddress() != null) {
             vm.setDisplayName(vmInfo.getVrouterIpAddress());
-        }*/
+        }
         vm.setIdPerms(vCenterIdPerms); 
         apiConnector.create(vm);
         s_logger.info("Created " + vm);
@@ -1777,7 +1775,7 @@ public class VncDB {
                     }
                 }
 
-                vmInfo.vmiInfoMap.put(vnRef.getUuid(), vmiInfo);
+                vmInfo.created(vmiInfo);
             }
         }
     }

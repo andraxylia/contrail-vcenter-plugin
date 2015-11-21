@@ -34,7 +34,8 @@ public class VmwareVirtualMachineInfo extends VCenterObject {
     private String name;
     private String interfaceUuid;
     private VirtualMachinePowerState powerState;
-    SortedMap<String, VmwareVirtualMachineInterfaceInfo> vmiInfoMap; // key is network UUID
+    private String toolsRunningStatus;
+    private SortedMap<String, VmwareVirtualMachineInterfaceInfo> vmiInfoMap; // key is MAC address
     
     // Vmware objects
     com.vmware.vim25.mo.VirtualMachine vm;
@@ -93,6 +94,7 @@ public class VmwareVirtualMachineInfo extends VCenterObject {
 
         VirtualMachineRuntimeInfo vmRuntimeInfo = vm.getRuntime();
         powerState = vmRuntimeInfo.getPowerState();
+        // TODO toolsRunningStatus 
 
         vmiInfoMap = new ConcurrentSkipListMap<String, VmwareVirtualMachineInterfaceInfo>();
         vcenterDB.readVirtualMachineInterfaces(this);
@@ -109,7 +111,7 @@ public class VmwareVirtualMachineInfo extends VCenterObject {
         uuid = vm.getUuid();
         vrouterIpAddress = vm.getDisplayName();
     }
-    
+
     public VmwareVirtualMachineInfo(VCenterDB vcenterDB,
             com.vmware.vim25.mo.Datacenter dc, String dcName,
             com.vmware.vim25.mo.VirtualMachine vm, Hashtable pTable) 
@@ -133,6 +135,9 @@ public class VmwareVirtualMachineInfo extends VCenterObject {
             vm.getServerConnection(), hostHmor);
         hostName = host.getName();
 
+        powerState = (VirtualMachinePowerState)pTable.get("runtime.powerState");
+        toolsRunningStatus  = (String)  pTable.get("guest.toolsRunningStatus");
+        
         vrouterIpAddress = vcenterDB.getVRouterVMIpFabricAddress(
                 hostName, host, VCenterDB.contrailVRouterVmNamePrefix);
 
@@ -224,6 +229,14 @@ public class VmwareVirtualMachineInfo extends VCenterObject {
             return false;
     }
 
+    public String getToolsRunningStatus() {
+        return toolsRunningStatus;
+    }
+
+    public void setToolsRunningStatus(String toolsRunningStatus) {
+        this.toolsRunningStatus = toolsRunningStatus;
+    }
+
     public SortedMap<String, VmwareVirtualMachineInterfaceInfo> getVmiInfo() {
         return vmiInfoMap;
     }
@@ -231,14 +244,21 @@ public class VmwareVirtualMachineInfo extends VCenterObject {
     public void setVmiInfo(SortedMap<String, VmwareVirtualMachineInterfaceInfo> vmiInfoMap) {
         this.vmiInfoMap = vmiInfoMap;
     }
-
-    public boolean updateVrouterNeeded(VmwareVirtualMachineInfo vm) {
-        if (vm == null) {
-            return true;
+    
+    public void created(VmwareVirtualMachineInterfaceInfo vmiInfo) {
+        vmiInfoMap.put(vmiInfo.getMacAddress(), vmiInfo);
+    }
+    
+    public void updated(VmwareVirtualMachineInterfaceInfo vmiInfo) {
+        if (!vmiInfoMap.containsKey(vmiInfo.getMacAddress())) {
+            vmiInfoMap.put(vmiInfo.getMacAddress(), vmiInfo);
         }
-        
-        // for now all fields trigger an update
-        return (!equals(vm));
+    }
+
+    public void deleted(VmwareVirtualMachineInterfaceInfo vmiInfo) {
+        if (vmiInfoMap.containsKey(vmiInfo.getMacAddress())) {
+            vmiInfoMap.remove(vmiInfo.getMacAddress());
+        }
     }
 
     public boolean equals(VmwareVirtualMachineInfo vm) {
@@ -342,7 +362,7 @@ public class VmwareVirtualMachineInfo extends VCenterObject {
            
        }
        
-       MainDB.vmwareVMs.put(uuid, this); 
+       MainDB.created(this); 
     }
     
     @Override
@@ -433,9 +453,6 @@ public class VmwareVirtualMachineInfo extends VCenterObject {
         }
         
         vncDB.deleteVirtualMachine(this);
-        
-        if (MainDB.vmwareVMs.containsKey(uuid)) {
-            MainDB.vmwareVMs.remove(uuid);
-        }
+        MainDB.deleted(this);
     }
 }
