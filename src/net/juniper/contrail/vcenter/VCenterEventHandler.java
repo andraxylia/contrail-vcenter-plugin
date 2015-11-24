@@ -20,6 +20,7 @@ import com.vmware.vim25.VmCreatedEvent;
 import com.vmware.vim25.VmDeployedEvent;
 import com.vmware.vim25.VmMacAssignedEvent;
 import com.vmware.vim25.VmMacChangedEvent;
+import com.vmware.vim25.VmMigratedEvent;
 import com.vmware.vim25.VmPoweredOffEvent;
 import com.vmware.vim25.VmPoweredOnEvent;
 import com.vmware.vim25.VmReconfiguredEvent;
@@ -68,6 +69,7 @@ public class VCenterEventHandler implements Runnable {
                 || event instanceof  VmRenamedEvent
                 || event instanceof VmMacChangedEvent
                 || event instanceof VmMacAssignedEvent
+                || event instanceof VmMigratedEvent
                 || event instanceof VmPoweredOnEvent
                 || event instanceof VmPoweredOffEvent) {
                 handleVmUpdateEvent();
@@ -83,13 +85,10 @@ public class VCenterEventHandler implements Runnable {
             } else {
                 handleEvent(event);
             }
-        } catch (IOException e) {
-            // log unable to process event;
-            // add this event to the retry queue
-            return;
         } catch (Exception e) {
             // log unable to process event;
-            // add this event to the retry queue
+            // this triggers a sync
+            VCenterMonitorTask.syncNeeded = true;
             return;
         }
         

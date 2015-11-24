@@ -23,7 +23,7 @@ import org.apache.log4j.Level;
 import net.juniper.contrail.api.types.VirtualMachine;
 import net.juniper.contrail.api.types.VirtualMachineInterface;
 
-class VCenterAsComputeMonitorTask implements Runnable, VCenterMonitorTask {
+class VCenterAsComputeMonitorTask implements Runnable {
     private static Logger s_logger = Logger.getLogger(VCenterAsComputeMonitorTask.class);
     private VCenterDB vcenterDB;
     private VncDB vncDB;

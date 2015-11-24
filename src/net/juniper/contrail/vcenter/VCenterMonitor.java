@@ -185,27 +185,15 @@ public class VCenterMonitor {
         zk_ms.waitForLeadership();
         s_logger.info("Acquired zookeeper Mastership .. ");
 
+        _vcenterDB = new VCenterDB(_vcenterURL, _vcenterUsername, _vcenterPassword,
+                _vcenterDcName, _vcenterDvsName, _vcenterIpFabricPg, _mode);
+        
+        _vncDB = new VncDB(_apiServerAddress, _apiServerPort, _mode);
+        
         // Launch the periodic VCenterMonitorTask
-        /*
-        VCenterMonitorTask _monitorTask = null;
-        if (_mode == "vcenter-only") {
-            s_logger.info("vcenter-only mode of operation.. ");
-            _monitorTask = new VCenterOnlyMonitorTask(_vcenterURL, 
-                                  _vcenterUsername, _vcenterPassword, 
-                                  _vcenterDcName, _vcenterDvsName,
-                                  _apiServerAddress, _apiServerPort, _vcenterIpFabricPg);
-        } else {
-            s_logger.info("vcenter-as-compute mode of operation.. ");
-            _monitorTask = new VCenterAsComputeMonitorTask(_vcenterURL, 
-                                  _vcenterUsername, _vcenterPassword, 
-                                  _vcenterDcName, _vcenterDvsName,
-                                  _vcenterIpFabricPg,
-                                  _apiServerAddress, _apiServerPort,
-                                  _username, _password, _tenant,
-                                  _authtype, _authurl);
-        }
-
-        scheduledTaskExecutor.scheduleWithFixedDelay(_monitorTask, 0, 4, //4 second periodic
+        VCenterMonitorTask _monitorTask = new VCenterMonitorTask(_vcenterDB, _vncDB, _mode);
+            
+        scheduledTaskExecutor.scheduleWithFixedDelay(_monitorTask, 0, 8, //8 second periodic
                 TimeUnit.SECONDS);
         Runtime.getRuntime().addShutdownHook(
                 new ExecutorServiceShutdownThread(scheduledTaskExecutor));
@@ -219,18 +207,8 @@ public class VCenterMonitor {
             } catch (java.lang.InterruptedException e) {
               System.out.println(e);
             }
-        }*/
-                
-        _vcenterDB = new VCenterDB(_vcenterURL, _vcenterUsername, _vcenterPassword,
-                _vcenterDcName, _vcenterDvsName, _vcenterIpFabricPg, _mode);        
-        // can we move the init in the constructor?
-        _vcenterDB.init();
-        
-        _vncDB = new VncDB(_apiServerAddress, _apiServerPort, _mode);
-        _vncDB.init();
-        
-        MainDB.init(_vcenterDB, _vncDB, _mode);
-        
+        }
+
         s_logger.info("Starting event monitor Task.. ");
         _eventMonitor = new VCenterNotify(null, _vcenterDB, _vncDB, _vcenterURL,
                                           _vcenterUsername, _vcenterPassword,

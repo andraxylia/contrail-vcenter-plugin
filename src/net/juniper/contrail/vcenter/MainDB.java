@@ -177,7 +177,7 @@ public class MainDB {
         }
     }
     
-    public static void init(VCenterDB _vcenterDB, VncDB _vncDB, String mode) 
+    public static void sync(VCenterDB _vcenterDB, VncDB _vncDB, String mode) 
             throws Exception {
         vcenterDB = _vcenterDB;
         vncDB = _vncDB;

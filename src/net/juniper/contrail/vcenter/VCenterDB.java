@@ -1721,13 +1721,4 @@ public class VCenterDB {
             vmInfo.created(vmiInfo);
         }
     }
-    
-    public void init() throws Exception{
-        while (Initialize() != true) {
-            Thread.sleep(2);
-        }
-        while (Initialize_data() != true) {
-            Thread.sleep(2);
-        }
-    }
 }

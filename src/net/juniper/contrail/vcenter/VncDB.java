@@ -1827,9 +1827,4 @@ public class VncDB {
             apiConnector.delete(vn);
         }
     }
-    public void init() throws Exception {
-        while (Initialize() != true) {
-            Thread.sleep(2);
-        }
-    }
 }

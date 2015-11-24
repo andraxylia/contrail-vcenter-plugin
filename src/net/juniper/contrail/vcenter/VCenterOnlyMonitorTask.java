@@ -24,7 +24,7 @@ import net.juniper.contrail.api.types.VirtualMachine;
 import net.juniper.contrail.api.types.VirtualMachineInterface;
 import net.juniper.contrail.watchdog.TaskWatchDog;
 
-class VCenterOnlyMonitorTask implements Runnable, VCenterMonitorTask {
+class VCenterOnlyMonitorTask implements Runnable {
     private static Logger s_logger = Logger.getLogger(VCenterMonitorTask.class);
     private VCenterDB vcenterDB;
     private VncDB vncDB;

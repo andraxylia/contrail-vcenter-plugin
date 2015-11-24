@@ -392,17 +392,6 @@ public class VCenterNotify implements Runnable
                     } else {
                         s_logger.info("\nNot managing the host " + vRouterIpAddress +" inactive");
                     }
-                } else if (value instanceof VmMigratedEvent) {
-                    printVmEvent(value);
-                    try {
-                        monitorTask.syncVmwareVirtualNetworks();
-                    } catch (Exception e) {
-                        String stackTrace = Throwables.getStackTraceAsString(e);
-                        s_logger.error("Error while syncVmwareVirtualNetworks: " + e);
-                        s_logger.error(stackTrace);
-                        e.printStackTrace();
-                    }
-
                 } else {
                     Event anEvent = (Event) value;
                     s_logger.info("\n----------"
