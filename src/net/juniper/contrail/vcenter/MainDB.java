@@ -16,9 +16,9 @@ import net.juniper.contrail.api.types.VirtualMachineInterface;
 import net.juniper.contrail.api.types.VirtualNetwork;
 
 public class MainDB {
-    static volatile SortedMap<String, VmwareVirtualNetworkInfo> vmwareVNs =
+    private static volatile SortedMap<String, VmwareVirtualNetworkInfo> vmwareVNs =
             new ConcurrentSkipListMap<String, VmwareVirtualNetworkInfo>();
-    static volatile SortedMap<String, VmwareVirtualMachineInfo> vmwareVMs =
+    private static volatile SortedMap<String, VmwareVirtualMachineInfo> vmwareVMs =
             new ConcurrentSkipListMap<String, VmwareVirtualMachineInfo>();
     
     private static volatile VncDB vncDB;
@@ -40,6 +40,28 @@ public class MainDB {
         return null;
     }
     
+    public static void created(VmwareVirtualNetworkInfo vnInfo) {
+        vmwareVNs.put(vnInfo.getUuid(), vnInfo);
+    }
+    
+    public static void updated(VmwareVirtualNetworkInfo vnInfo) {
+        if (!vmwareVNs.containsKey(vnInfo.getUuid())) {
+            vmwareVNs.put(vnInfo.getUuid(), vnInfo);
+        }
+    }
+    
+    public static void deleted(VmwareVirtualNetworkInfo vnInfo) {
+        if (vmwareVNs.containsKey(vnInfo.getUuid())) {
+            vmwareVNs.remove(vnInfo.getUuid());
+        }
+    }
+    
+    public static void deleteVirtualNetwork(VmwareVirtualNetworkInfo vnInfo) {
+        if (vmwareVNs.containsKey(vnInfo.getUuid())) {
+            vmwareVNs.remove(vnInfo.getUuid());
+        }
+    }
+
     public static VmwareVirtualMachineInfo getVmById(String uuid) {
         if (vmwareVMs.containsKey(uuid)) {
             return vmwareVMs.get(uuid);
@@ -47,6 +69,22 @@ public class MainDB {
         return null;
     }
 
+    public static void created(VmwareVirtualMachineInfo vmInfo) {
+        vmwareVMs.put(vmInfo.getUuid(), vmInfo);
+    }
+    
+    public static void updated(VmwareVirtualMachineInfo vmInfo) {
+        if (!vmwareVMs.containsKey(vmInfo.getUuid())) {
+            vmwareVMs.put(vmInfo.getUuid(), vmInfo);
+        }
+    }
+    
+    public static void deleted(VmwareVirtualMachineInfo vmInfo) {
+        if (vmwareVMs.containsKey(vmInfo.getUuid())) {
+            vmwareVNs.remove(vmInfo.getUuid());
+        }
+    }
+    
     public static <K extends Comparable<K>, V extends VCenterObject> 
     void sync(SortedMap<K, V> oldMap, SortedMap<K, V> newMap) {
         
@@ -115,6 +153,12 @@ public class MainDB {
             sync(oldVMs, vmwareVMs);
         }
        
+        /*
+        vncDB.clearInstanceIps();
+        vncDB.clearVirtualMachineInterfaces();
+        vncDB.clearVirtualMachines();
+        vncDB.clearVirtualNetworks();*/
+        
         printInfo();
     }
     
