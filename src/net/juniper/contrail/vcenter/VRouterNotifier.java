@@ -19,7 +19,7 @@ public class VRouterNotifier {
 
     public static void created(VmwareVirtualMachineInterfaceInfo vmiInfo) {
 
-        if (vmiInfo == null || vmiInfo.apiVmi == null || vmiInfo.apiInstanceIp == null
+        if (vmiInfo == null || vmiInfo.apiVmi == null
                 || vmiInfo.vmInfo == null || vmiInfo.vmInfo.apiVm == null 
                 || vmiInfo.vnInfo == null || vmiInfo.vnInfo.apiVn == null) {
                 
@@ -76,13 +76,13 @@ public class VRouterNotifier {
         }
     }
 
-    public static void deleted(VmwareVirtualMachineInterfaceInfo vmiInfo)
-        throws UnknownHostException {
-        if (vmiInfo == null || vmiInfo.apiVmi == null || vmiInfo.apiInstanceIp == null
+    public static void deleted(VmwareVirtualMachineInterfaceInfo vmiInfo) {
+        if (vmiInfo == null || vmiInfo.apiVmi == null
                 || vmiInfo.vmInfo == null || vmiInfo.vmInfo.apiVm == null 
                 || vmiInfo.vnInfo == null || vmiInfo.vnInfo.apiVn == null) {
                 
-            throw new IllegalArgumentException("Null argument");
+            // log error ("Null argument");
+            return;
         }
 
         String vrouterIpAddress = vmiInfo.getVmInfo().getVrouterIpAddress();
@@ -104,9 +104,14 @@ public class VRouterNotifier {
         
         ContrailVRouterApi vrouterApi = vrouterApiMap.get(vrouterIpAddress);
         if (vrouterApi == null) {
+            try {
             vrouterApi = new ContrailVRouterApi(
                     InetAddress.getByName(vrouterIpAddress), 
                     vrouterApiPort, false, 1000);
+            } catch (UnknownHostException e) {
+                // log error ("Incorrect vrouter address");
+                return;
+            }
             vrouterApiMap.put(vrouterIpAddress, vrouterApi);
         }
         vrouterApi.DeletePort(UUID.fromString(vmiInfo.getUuid()));

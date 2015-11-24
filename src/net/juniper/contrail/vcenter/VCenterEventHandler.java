@@ -106,7 +106,8 @@ public class VCenterEventHandler implements Runnable {
         
         newVmInfo.create(vncDB);
         
-        // add a watch on this Vm guest OS to be notified of further changes
+        // add a watch on this Vm guest OS to be notified of guest OS changes,
+        // for instance IP address changes
         watchVm();
     }
 
@@ -119,17 +120,17 @@ public class VCenterEventHandler implements Runnable {
         if (oldVmInfo != null) {
             oldVmInfo.update(newVmInfo, vncDB);
         } else {
-            // log some error
+            newVmInfo.create(vncDB);
+            
+            // add a watch on this Vm guest OS to be notified of guest OS changes,
+            // for instance IP address changes
+            watchVm();
         }
     }
 
     private void handleVmDeleteEvent() throws Exception {
         VmwareVirtualMachineInfo vmInfo = new VmwareVirtualMachineInfo(event, vcenterDB);
-        
-        if (vmInfo.ignore()) {
-            return;
-        }
-  
+          
         vmInfo.delete(vncDB);
     }
 
@@ -149,7 +150,7 @@ public class VCenterEventHandler implements Runnable {
         if (oldVnInfo != null) {
             oldVnInfo.update(newVnInfo, vncDB);
         } else {
-            // log some error
+            newVnInfo.create(vncDB);
         }
     }
 

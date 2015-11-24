@@ -108,8 +108,7 @@ public class VmwareVirtualMachineInterfaceInfo extends VCenterObject {
         
         vncDB.createVirtualMachineInterface(this);
         
-        if ((vnInfo.getExternalIpam() == false || (ipAddress != null))
-                && (apiInstanceIp == null)) {
+        if ((vnInfo.getExternalIpam() == false || (ipAddress != null))) {
             vncDB.createInstanceIp(this);
         }
         
@@ -128,24 +127,45 @@ public class VmwareVirtualMachineInterfaceInfo extends VCenterObject {
         
         VmwareVirtualMachineInterfaceInfo newVmiInfo = (VmwareVirtualMachineInterfaceInfo)obj;
                
+        // change of Ip Address, MAC address or network triggers a delete / recreate
         if ((newVmiInfo.ipAddress != null && !newVmiInfo.ipAddress.equals(ipAddress))
-                || (newVmiInfo.macAddress != null && !newVmiInfo.macAddress.equals(macAddress))) {
+                || (newVmiInfo.macAddress != null && !newVmiInfo.macAddress.equals(macAddress))
+                || vnInfo != newVmiInfo.vnInfo) {
             if (up) {
                 VRouterNotifier.deleted(this);
                 up = false;
             }
+                   
             vncDB.deleteInstanceIp(this);
             
-            ipAddress = newVmiInfo.ipAddress;
+            if (vnInfo != newVmiInfo.vnInfo) {
+                // change of network
+                vnInfo.deleted(this);
+                vnInfo = newVmiInfo.vnInfo;
+                ipAddress = newVmiInfo.ipAddress;
+                macAddress = newVmiInfo.macAddress;
+                vnInfo.created(this);
+            } else {
+                if (newVmiInfo.ipAddress != null) {
+                    ipAddress = newVmiInfo.ipAddress;
+                }
+                
+                if (newVmiInfo.macAddress != null) {
+                    macAddress = newVmiInfo.macAddress;
+                }
+            }
             
             if ((vnInfo.getExternalIpam() == false || (ipAddress != null))) {
                 vncDB.createInstanceIp(this);
             }
         }
         
-        if (vmInfo.isPoweredOnState() && ipAddress != null && !up) {
+        if (!up && (vmInfo.isPoweredOnState() && ipAddress != null)) {
             up = true;
             VRouterNotifier.created(this);
+        } else if (up && (!vmInfo.isPoweredOnState() || ipAddress == null)) {
+            VRouterNotifier.deleted(this);
+            up = false;
         }
     }
 
@@ -159,28 +179,32 @@ public class VmwareVirtualMachineInterfaceInfo extends VCenterObject {
             apiVmi = oldVmiInfo.apiVmi;
         }
         
-        if (apiInstanceIp == null && oldVmiInfo.apiInstanceIp != null) {
-            apiInstanceIp = oldVmiInfo.apiInstanceIp;
-        }
-        
-        // workaround for vmware sending null address after restart
-        if (ipAddress == null && oldVmiInfo.ipAddress != null) {
-            ipAddress = oldVmiInfo.ipAddress;
-        }
-        
-        if (macAddress == null && oldVmiInfo.macAddress != null) {
-            macAddress = oldVmiInfo.macAddress;
-        }
-        
-        if (uuid == null && oldVmiInfo.uuid != null) {
-            uuid = oldVmiInfo.uuid;
+        if (vnInfo == oldVmiInfo.vnInfo) {
+            // network is the same
+            // reuse the old address
+            if (apiInstanceIp == null && oldVmiInfo.apiInstanceIp != null) {
+                apiInstanceIp = oldVmiInfo.apiInstanceIp;
+            }
+    
+            if (ipAddress == null && oldVmiInfo.ipAddress != null) {
+                ipAddress = oldVmiInfo.ipAddress;
+            }
+            
+            if (macAddress == null && oldVmiInfo.macAddress != null) {
+                macAddress = oldVmiInfo.macAddress;
+            }
+            
+            if (uuid == null && oldVmiInfo.uuid != null) {
+                uuid = oldVmiInfo.uuid;
+            }
         }
         
         if ((oldVmiInfo.ipAddress != null && !oldVmiInfo.ipAddress.equals(ipAddress))
-                || (oldVmiInfo.macAddress != null && !oldVmiInfo.macAddress.equals(macAddress))) {
+                || (oldVmiInfo.macAddress != null && !oldVmiInfo.macAddress.equals(macAddress))
+                || (vnInfo != oldVmiInfo.vnInfo)) {
             VRouterNotifier.deleted(oldVmiInfo);
             vncDB.deleteInstanceIp(oldVmiInfo);
-            vnInfo.deleted(oldVmiInfo);
+            oldVmiInfo.vnInfo.deleted(oldVmiInfo);
         }
         
         if ((vnInfo.getExternalIpam() == false || (ipAddress != null))

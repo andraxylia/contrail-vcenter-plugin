@@ -1479,29 +1479,6 @@ public class VncDB {
             }
         }
         
-        /*
-        // find VMI matching vmUuid & vnUuid
-        List<ObjectReference<ApiPropertyBase>> vmInterfaceRefs =
-                vm.getVirtualMachineInterfaceBackRefs();
-        for (ObjectReference<ApiPropertyBase> vmInterfaceRef :
-            Utils.safe(vmInterfaceRefs)) {
-            String vmInterfaceUuid = vmInterfaceRef.getUuid();
-            VirtualMachineInterface vmInterface = (VirtualMachineInterface)
-                    apiConnector.findById(VirtualMachineInterface.class,
-                            vmInterfaceUuid);
-            List<ObjectReference<ApiPropertyBase>> vnRefs =
-                                            vmInterface.getVirtualNetwork();
-            for (ObjectReference<ApiPropertyBase> vnRef : vnRefs) {
-                if (vnRef.getUuid().equals(network.getUuid())) {
-                    s_logger.debug("VMI exits with vnUuid =" + network.getUuid()
-                                 + " vmUuid = " + network.getUuid()
-                                 + " no need to create new ");
-                    vmiInfo.apiVmi = vmInterface;
-                    return;
-                }
-            }
-        }*/
-
         // create Virtual machine interface
         String vmInterfaceName = "vmi-" + vnInfo.getName()
                 + "-" + vmInfo.getName();
@@ -1533,7 +1510,7 @@ public class VncDB {
             s_logger.error("Cannot delete VMI: null argument");
             throw new IllegalArgumentException("Null arguments");
         }
-        
+          
         VirtualMachineInterface apiVmi = vmiInfo.apiVmi;
         if (apiVmi == null) {
             apiVmi = (VirtualMachineInterface) apiConnector.findById(
@@ -1630,28 +1607,25 @@ public class VncDB {
             VmwareVirtualMachineInterfaceInfo vmiInfo)
             throws IOException {
         
-        if (vmiInfo == null) {
+        if (vmiInfo == null || vmiInfo.apiVmi == null) {
             s_logger.info("Null argument");
             return;
         }
         
-        if (vmiInfo.apiInstanceIp == null) {
-            // delete instance Ip
-            List<ObjectReference<ApiPropertyBase>> instanceIpRefs = 
-                    vmiInfo.apiVmi.getInstanceIpBackRefs();
-            for (ObjectReference<ApiPropertyBase> instanceIpRef : 
-                Utils.safe(instanceIpRefs)) {
-                s_logger.info("Delete instance IP: " + 
-                        instanceIpRef.getReferredName());
-                apiConnector.delete(InstanceIp.class, 
-                        instanceIpRef.getUuid());
-            }
-            return;
+       
+        // delete instance Ip
+        List<ObjectReference<ApiPropertyBase>> instanceIpRefs = 
+                vmiInfo.apiVmi.getInstanceIpBackRefs();
+        for (ObjectReference<ApiPropertyBase> instanceIpRef : 
+            Utils.safe(instanceIpRefs)) {
+            s_logger.info("Delete instance IP: " + 
+                    instanceIpRef.getReferredName());
+            apiConnector.delete(InstanceIp.class, 
+                    instanceIpRef.getUuid());
+            s_logger.info("Deleted Ip Instance " + instanceIpRef.getUuid());
         }
-
-        apiConnector.delete(vmiInfo.apiInstanceIp);
+        
         vmiInfo.apiInstanceIp = null;
-        s_logger.info("Deleted Ip Instance for " + vmiInfo.getIpAddress());
     }
 
     SortedMap<String, VmwareVirtualNetworkInfo> readVirtualNetworks() {
@@ -1769,9 +1743,11 @@ public class VncDB {
                             apiConnector.findById(InstanceIp.class,
                                     instanceIpRef.getUuid());
                     if (inst != null) {
-                        //TODO this is in fact a list of IP addresses
                         vmiInfo.setIpAddress(inst.getAddress());
                         vmiInfo.apiInstanceIp = inst;
+                        //TODO this is in fact a list of IP addresses
+                        // but we only support one
+                        break;
                     }
                 }
 

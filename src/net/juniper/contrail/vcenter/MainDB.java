@@ -131,6 +131,52 @@ public class MainDB {
         }
     }
   
+    public static <K extends Comparable<K>, V extends VCenterObject> 
+    void update(SortedMap<K, V> oldMap, SortedMap<K, V> newMap) {
+        
+        Iterator<Entry<K, V>> oldIter = oldMap.entrySet().iterator();
+        Entry<K, V> oldEntry = oldIter.hasNext()? oldIter.next() : null;
+        Iterator<Entry<K, V>> newIter = newMap.entrySet().iterator();
+        Entry<K, V> newEntry = newIter.hasNext()? newIter.next() : null;
+        
+        while (oldEntry != null && newEntry != null) {
+            Integer cmp = newEntry.getKey().compareTo(oldEntry.getKey());
+            try {
+                if (cmp == 0) {
+                    oldEntry.getValue().update(newEntry.getValue(), vncDB);
+                    oldEntry = oldIter.hasNext()? oldIter.next() : null;
+                    newEntry = newIter.hasNext()? newIter.next() : null;
+                } else if (cmp < 0) {
+                    newEntry.getValue().create(vncDB);
+                    newEntry = newIter.hasNext()? newIter.next() : null;
+                } else {
+                    oldEntry.getValue().delete(vncDB);
+                    oldEntry = oldIter.hasNext()? oldIter.next() : null;
+                }
+            } catch (Exception e) {
+                //s_logger.error("Cannot sync " + entry1.getKey());
+            }
+        }
+
+        while (oldEntry != null) {
+            try {
+                oldEntry.getValue().delete(vncDB);
+            } catch (Exception e) {
+                //s_logger.error("Cannot delete " + entry2.getKey());
+            }
+            oldEntry = oldIter.hasNext()? oldIter.next() : null;
+        }
+        
+        while (newEntry != null) {
+            try {
+                newEntry.getValue().create(vncDB);
+            } catch (Exception e) {
+                //s_logger.error("Cannot create VN " + entry1.getKey());
+            }
+            newEntry = newIter.hasNext()? newIter.next() : null;
+        }
+    }
+    
     public static void init(VCenterDB _vcenterDB, VncDB _vncDB, String mode) 
             throws Exception {
         vcenterDB = _vcenterDB;

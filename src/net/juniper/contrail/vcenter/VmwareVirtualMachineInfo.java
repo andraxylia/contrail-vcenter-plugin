@@ -94,7 +94,9 @@ public class VmwareVirtualMachineInfo extends VCenterObject {
 
         VirtualMachineRuntimeInfo vmRuntimeInfo = vm.getRuntime();
         powerState = vmRuntimeInfo.getPowerState();
-        // TODO toolsRunningStatus 
+        toolsRunningStatus = vm.getGuest().getToolsRunningStatus();
+        // TODO 
+        //vm.getGuest().getIpAddress()
 
         vmiInfoMap = new ConcurrentSkipListMap<String, VmwareVirtualMachineInterfaceInfo>();
         vcenterDB.readVirtualMachineInterfaces(this);
@@ -393,6 +395,9 @@ public class VmwareVirtualMachineInfo extends VCenterObject {
         if (newVmInfo.powerState != null) {
             powerState = newVmInfo.powerState;
         }
+        if (newVmInfo.toolsRunningStatus != null) {
+            toolsRunningStatus = newVmInfo.toolsRunningStatus;
+        }
         if (newVmInfo.vm != null) {
             vm = newVmInfo.vm;
         }
@@ -421,7 +426,14 @@ public class VmwareVirtualMachineInfo extends VCenterObject {
         // in what cases do we really update
         //vncDB.updateVirtualMachine(this);
         
-        MainDB.sync(vmiInfoMap, newVmInfo.vmiInfoMap);
+        for (Map.Entry<String, VmwareVirtualMachineInterfaceInfo> entry: 
+            newVmInfo.vmiInfoMap.entrySet()) {
+           VmwareVirtualMachineInterfaceInfo vmiInfo = entry.getValue();
+           vmiInfo.setVmInfo(this);
+           
+        }
+        
+        MainDB.update(vmiInfoMap, newVmInfo.vmiInfoMap);
     }
 
     @Override

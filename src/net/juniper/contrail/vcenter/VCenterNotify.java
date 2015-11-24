@@ -374,16 +374,6 @@ public class VCenterNotify implements Runnable
                                 + anEvent.getFullFormattedMessage()
                                 + "\n----------\n");
                     }
-                } else if (value instanceof VmPoweredOnEvent) {
-                    printVmEvent(value);
-                    try {
-                        monitorTask.syncVmwareVirtualNetworks();
-                    } catch (Exception e) {
-                        String stackTrace = Throwables.getStackTraceAsString(e);
-                        s_logger.error("Error while syncVmwareVirtualNetworks: " + e);
-                        s_logger.error(stackTrace);
-                        e.printStackTrace();
-                    }
                 } else if ((value instanceof EnteredMaintenanceModeEvent) || (value instanceof HostConnectionLostEvent)) {
                     Event anEvent = (Event) value;
                     String vRouterIpAddress = vcenterDB.esxiToVRouterIpMap.get(anEvent.getHost().getName());
@@ -402,16 +392,6 @@ public class VCenterNotify implements Runnable
                     } else {
                         s_logger.info("\nNot managing the host " + vRouterIpAddress +" inactive");
                     }
-                } else if (value instanceof VmPoweredOffEvent) {
-                    printVmEvent(value);
-                    try {
-                        monitorTask.syncVmwareVirtualNetworks();
-                    } catch (Exception e) {
-                        String stackTrace = Throwables.getStackTraceAsString(e);
-                        s_logger.error("Error while syncVmwareVirtualNetworks: " + e);
-                        s_logger.error(stackTrace);
-                        e.printStackTrace();
-                    }
                 } else if (value instanceof VmMigratedEvent) {
                     printVmEvent(value);
                     try {
@@ -423,16 +403,6 @@ public class VCenterNotify implements Runnable
                         e.printStackTrace();
                     }
 
-                } else if (value instanceof DvsEvent) {
-                    DvsEvent anEvent = (DvsEvent) value;
-                    s_logger.info("\n----------" + "\n Event ID: "
-                            + anEvent.getKey() + "\n Event: "
-                            + anEvent.getClass().getName()
-                            + "\n FullFormattedMessage: "
-                            + anEvent.getFullFormattedMessage()
-                            + "\n DVS Port Reference: "
-                            + anEvent.getDvs().getDvs().get_value()
-                            + "\n----------\n");
                 } else {
                     Event anEvent = (Event) value;
                     s_logger.info("\n----------"
