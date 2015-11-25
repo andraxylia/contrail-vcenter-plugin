@@ -89,7 +89,7 @@ public class VncDBTest extends TestCase {
         }
 
         // Setup vnc object
-        vncDB = new VncDB(null,0, "vcenter-only");
+        vncDB = new VncDB(null,0, Mode.VCENTER_ONLY);
         vncDB.setApiConnector(_api);
         assertNotNull(vncDB.getApiConnector());
         assertTrue(vncDB.isVncApiServerAlive());

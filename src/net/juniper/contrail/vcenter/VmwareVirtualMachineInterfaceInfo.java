@@ -105,7 +105,6 @@ public class VmwareVirtualMachineInterfaceInfo extends VCenterObject {
     
     @Override
     void create(VncDB vncDB) throws Exception {
-        
         vncDB.createVirtualMachineInterface(this);
         
         if ((vnInfo.getExternalIpam() == false || (ipAddress != null))) {

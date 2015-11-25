@@ -23,6 +23,7 @@ public class MainDB {
     
     private static volatile VncDB vncDB;
     private static volatile VCenterDB vcenterDB;
+    private static volatile Mode mode;
 
     public static VmwareVirtualNetworkInfo getVnByName(String name) {
         for (VmwareVirtualNetworkInfo vnInfo: vmwareVNs.values()) {
@@ -166,7 +167,7 @@ public class MainDB {
             }
             oldEntry = oldIter.hasNext()? oldIter.next() : null;
         }
-        
+
         while (newEntry != null) {
             try {
                 newEntry.getValue().create(vncDB);
@@ -177,28 +178,27 @@ public class MainDB {
         }
     }
     
-    public static void sync(VCenterDB _vcenterDB, VncDB _vncDB, String mode) 
+    public static void sync(VCenterDB _vcenterDB, VncDB _vncDB, Mode _mode) 
             throws Exception {
         vcenterDB = _vcenterDB;
         vncDB = _vncDB;
+        mode = _mode;
         
         vmwareVNs.clear();
         vmwareVMs.clear();
         
-        vmwareVNs = vcenterDB.readVirtualNetworks();
-        SortedMap<String, VmwareVirtualNetworkInfo> oldVNs = vncDB.readVirtualNetworks();
-        
-        if (mode == "vcenter-only") {
+        if (mode == Mode.VCENTER_ONLY) {
+            vmwareVNs = vcenterDB.readVirtualNetworks();
+            SortedMap<String, VmwareVirtualNetworkInfo> oldVNs = vncDB.readVirtualNetworks();
             sync(oldVNs, vmwareVNs);
+        } else {
+            vmwareVNs = vncDB.readVirtualNetworks();
         }
         
         vmwareVMs = vcenterDB.readVirtualMachines();
-        
         SortedMap<String, VmwareVirtualMachineInfo> oldVMs = vncDB.readVirtualMachines();
-        if (mode == "vcenter-only") {
-            sync(oldVMs, vmwareVMs);
-        }
-       
+        sync(oldVMs, vmwareVMs);
+        
         /*
         vncDB.clearInstanceIps();
         vncDB.clearVirtualMachineInterfaces();

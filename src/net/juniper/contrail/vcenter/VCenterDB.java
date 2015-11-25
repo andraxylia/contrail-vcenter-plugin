@@ -77,7 +77,7 @@ public class VCenterDB {
     private final String vcenterUsername;
     private final String vcenterPassword;
     private final String contrailIpFabricPgName;
-    private final String mode;
+    private final Mode mode;
     
     static volatile ServiceInstance serviceInstance;
     private volatile Folder rootFolder;
@@ -94,7 +94,7 @@ public class VCenterDB {
 
     public VCenterDB(String vcenterUrl, String vcenterUsername,
                      String vcenterPassword, String contrailDcName,
-                     String contrailDvsName, String ipFabricPgName, String mode) {
+                     String contrailDvsName, String ipFabricPgName, Mode mode) {
         this.vcenterUrl             = vcenterUrl;
         this.vcenterUsername        = vcenterUsername;
         this.vcenterPassword        = vcenterPassword;
@@ -1703,7 +1703,11 @@ public class VCenterDB {
             String netName = net.getName();
             VmwareVirtualNetworkInfo vnInfo = MainDB.getVnByName(netName);
             if (vnInfo == null) {
-                // log error
+                if (mode == Mode.VCENTER_ONLY) {
+                    // log error
+                } else {
+                    // network is managed by Openstack or other entity
+                }
                 continue;
             }
    

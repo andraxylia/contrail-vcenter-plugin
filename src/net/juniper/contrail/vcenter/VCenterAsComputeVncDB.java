@@ -50,7 +50,7 @@ public class VCenterAsComputeVncDB extends VncDB {
                                  String username, String password,
                                  String tenant,
                                  String authtype, String authurl) {
-        super(apiServerAddress, apiServerPort, "vcenter-as-compute");
+        super(apiServerAddress, apiServerPort, Mode.VCENTER_AS_COMPUTE);
         this.username = username;
         this.password = password;
         this.tenant   = tenant;

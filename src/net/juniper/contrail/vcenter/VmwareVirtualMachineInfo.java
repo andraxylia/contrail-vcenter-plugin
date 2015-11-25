@@ -356,7 +356,9 @@ public class VmwareVirtualMachineInfo extends VCenterObject {
         if (ignore()) {
             return;
         }
+        
         vncDB.createVirtualMachine(this);
+        
         for (Map.Entry<String, VmwareVirtualMachineInterfaceInfo> entry: 
             vmiInfoMap.entrySet()) {
            VmwareVirtualMachineInterfaceInfo vmiInfo = entry.getValue();
@@ -465,6 +467,7 @@ public class VmwareVirtualMachineInfo extends VCenterObject {
         }
         
         vncDB.deleteVirtualMachine(this);
+        
         MainDB.deleted(this);
     }
 }

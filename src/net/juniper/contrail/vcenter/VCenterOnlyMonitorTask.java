@@ -39,8 +39,8 @@ class VCenterOnlyMonitorTask implements Runnable {
                               String vcenterDvsName, String apiServerAddress,
                               int apiServerPort, String vcenterIpFabricPg) throws Exception {
         vcenterDB = new VCenterDB(vcenterUrl, vcenterUsername, vcenterPassword,
-                                  vcenterDcName, vcenterDvsName, vcenterIpFabricPg, "vcenter-only");
-        vncDB     = new VncDB(apiServerAddress, apiServerPort, "vcenter-only");
+                                  vcenterDcName, vcenterDvsName, vcenterIpFabricPg, Mode.VCENTER_ONLY);
+        vncDB     = new VncDB(apiServerAddress, apiServerPort, Mode.VCENTER_ONLY);
     }
 
     public void Initialize() {

@@ -431,8 +431,9 @@ public class VmwareVirtualNetworkInfo extends VCenterObject {
         if (ignore()) {
             return;
         }
+       
         vncDB.createVirtualNetwork(this);
-        MainDB.deleted(this);
+        MainDB.created(this);
     }
     
     @Override

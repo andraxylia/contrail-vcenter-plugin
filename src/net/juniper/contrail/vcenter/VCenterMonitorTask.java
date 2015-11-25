@@ -28,14 +28,14 @@ class VCenterMonitorTask implements Runnable {
     private static Logger s_logger = Logger.getLogger(VCenterMonitorTask.class);
     private VCenterDB vcenterDB;
     private VncDB vncDB;
-    private String mode;
+    private Mode mode;
     private boolean AddPortSyncAtPluginStart = true;
     private boolean VncDBInitCompelete = false;
     private boolean VcenterDBInitComplete = false;
     public boolean VCenterNotifyForceRefresh = false;
     static volatile boolean syncNeeded = true;
 
-    public VCenterMonitorTask(VCenterDB vcenterDB, VncDB vncDB, String mode) {
+    public VCenterMonitorTask(VCenterDB vcenterDB, VncDB vncDB, Mode mode) {
         this.vcenterDB = vcenterDB; 
         this.vncDB     = vncDB;
         this.mode      = mode;

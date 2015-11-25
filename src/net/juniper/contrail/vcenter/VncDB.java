@@ -48,7 +48,6 @@ public class VncDB {
     protected static final int vrouterApiPort = 9090;
     protected final String apiServerAddress;
     protected final int apiServerPort;
-    private final String mode;
     protected HashMap<String, ContrailVRouterApi> vrouterApiMap;
     
     protected volatile ApiConnector apiConnector;
@@ -57,6 +56,7 @@ public class VncDB {
     private NetworkIpam vCenterIpam;
     private SecurityGroup vCenterDefSecGrp;
     private IdPermsType vCenterIdPerms;
+    private final Mode mode;
 
     public static final String VNC_ROOT_DOMAIN     = "default-domain";
     public static final String VNC_VCENTER_PROJECT = "vCenter";
@@ -66,7 +66,7 @@ public class VncDB {
     public static final String VNC_VCENTER_TEST_PROJECT = "vCenter-test";
     public static final String VNC_VCENTER_TEST_IPAM    = "vCenter-ipam-test";
     
-    public VncDB(String apiServerAddress, int apiServerPort, String mode) {
+    public VncDB(String apiServerAddress, int apiServerPort, Mode mode) {
         this.apiServerAddress = apiServerAddress;
         this.apiServerPort = apiServerPort;
         this.mode = mode;
@@ -1322,6 +1322,9 @@ public class VncDB {
 
     public void createVirtualNetwork(VmwareVirtualNetworkInfo vnInfo)
             throws IOException {
+        if (mode != Mode.VCENTER_ONLY) {
+            return;
+        }
         
         if (vnInfo == null) {
             s_logger.error("Null pointer argument");
@@ -1386,11 +1389,15 @@ public class VncDB {
     public void deleteVirtualNetwork(VmwareVirtualNetworkInfo vnInfo)
             throws IOException {
         
+        if (mode != Mode.VCENTER_ONLY) {
+            return;
+        }
+
         if (vnInfo == null) {
             s_logger.error("Cannot delete API VN: null arguments");
             throw new IllegalArgumentException("Null arguments");
         }
-      
+        
         if (vnInfo.apiVn == null) {
                        
             vnInfo.apiVn = (VirtualNetwork) apiConnector.findById(
@@ -1409,12 +1416,15 @@ public class VncDB {
 
     public void createVirtualMachine(VmwareVirtualMachineInfo vmInfo)
             throws IOException {
+        if (mode != Mode.VCENTER_ONLY) {
+            return;
+        }
         
         if (vmInfo == null) {
             s_logger.error("Null argument");
             throw new IllegalArgumentException("vmInfo is null");
         }
-
+        
         String vmUuid = vmInfo.getUuid();
         VirtualMachine vm = new VirtualMachine();
         vmInfo.apiVm = vm;
@@ -1433,6 +1443,10 @@ public class VncDB {
 
     public void deleteVirtualMachine(VmwareVirtualMachineInfo vmInfo)
             throws IOException {
+        if (mode != Mode.VCENTER_ONLY) {
+            return;
+        }
+        
         if (vmInfo == null) {
             s_logger.error("Cannot delete VM: null arguments");
             throw new IllegalArgumentException("Null arguments");
@@ -1453,6 +1467,11 @@ public class VncDB {
     public void createVirtualMachineInterface(
             VmwareVirtualMachineInterfaceInfo vmiInfo)
             throws IOException {
+        
+        if (mode != Mode.VCENTER_ONLY) {
+            return;
+        }
+        
         VmwareVirtualMachineInfo vmInfo = vmiInfo.vmInfo;
         VmwareVirtualNetworkInfo vnInfo = vmiInfo.vnInfo;
         VirtualMachine vm = vmInfo.apiVm;
@@ -1506,6 +1525,10 @@ public class VncDB {
     public void deleteVirtualMachineInterface(
             VmwareVirtualMachineInterfaceInfo vmiInfo)
             throws IOException {
+        if (mode != Mode.VCENTER_ONLY) {
+            return;
+        }
+        
         if (vmiInfo == null) {
             s_logger.error("Cannot delete VMI: null argument");
             throw new IllegalArgumentException("Null arguments");
@@ -1577,6 +1600,10 @@ public class VncDB {
     public void createInstanceIp(
             VmwareVirtualMachineInterfaceInfo vmiInfo)
             throws IOException {
+        if (mode != Mode.VCENTER_ONLY) {
+            return;
+        }
+        
         VirtualNetwork network = vmiInfo.vnInfo.apiVn;
         VirtualMachine vm = vmiInfo.vmInfo.apiVm;
         VirtualMachineInterface vmIntf = vmiInfo.apiVmi;
@@ -1606,6 +1633,9 @@ public class VncDB {
     public void deleteInstanceIp(
             VmwareVirtualMachineInterfaceInfo vmiInfo)
             throws IOException {
+        if (mode != Mode.VCENTER_ONLY) {
+            return;
+        }
         
         if (vmiInfo == null || vmiInfo.apiVmi == null) {
             s_logger.info("Null argument");
