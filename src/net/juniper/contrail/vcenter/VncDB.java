@@ -48,6 +48,11 @@ public class VncDB {
     protected static final int vrouterApiPort = 9090;
     protected final String apiServerAddress;
     protected final int apiServerPort;
+    protected final String username;
+    protected final String password;
+    protected final String tenant;
+    protected final String authtype;
+    protected final String authurl;
     protected HashMap<String, ContrailVRouterApi> vrouterApiMap;
     
     protected volatile ApiConnector apiConnector;
@@ -74,11 +79,42 @@ public class VncDB {
         // Create vrouter api map
         vrouterApiMap = new HashMap<String, ContrailVRouterApi>();
 
-        // Create global id-perms object.
-        vCenterIdPerms = new IdPermsType();
-        vCenterIdPerms.setCreator("vcenter-plugin");
-        vCenterIdPerms.setEnable(true);
+        if (mode == Mode.VCENTER_ONLY) {
+            // Create global id-perms object.
+            vCenterIdPerms = new IdPermsType();
+            vCenterIdPerms.setCreator("vcenter-plugin");
+            vCenterIdPerms.setEnable(true);
+        }
+        this.username = null;
+        this.password = null;
+        this.tenant   = null;
+        this.authtype = null;
+        this.authurl  = null;
+    }
 
+    public VncDB(String apiServerAddress, int apiServerPort,
+            String username, String password,
+            String tenant,
+            String authtype, String authurl, Mode mode) {
+        this.apiServerAddress = apiServerAddress;
+        this.apiServerPort = apiServerPort;
+        this.mode = mode;
+
+        // Create vrouter api map
+        vrouterApiMap = new HashMap<String, ContrailVRouterApi>();
+
+        if (mode == Mode.VCENTER_ONLY) {
+            // Create global id-perms object.
+            vCenterIdPerms = new IdPermsType();
+            vCenterIdPerms.setCreator("vcenter-plugin");
+            vCenterIdPerms.setEnable(true);
+        }
+
+        this.username = username;
+        this.password = password;
+        this.tenant   = tenant;
+        this.authtype = authtype;
+        this.authurl  = authurl;
     }
     
     public void setApiConnector(ApiConnector _apiConnector) {
@@ -117,6 +153,11 @@ public class VncDB {
         if (apiConnector == null) {
             apiConnector = ApiConnectorFactory.build(apiServerAddress,
                                                      apiServerPort);
+            if (mode == Mode.VCENTER_AS_COMPUTE) {
+                apiConnector.credentials(username, password)
+                            .tenantName(tenant)
+                            .authServer(authtype, authurl);
+            }
             if (apiConnector == null) {
                 s_logger.error(" failed to create ApiConnector.. retry later");
                 alive = false;
@@ -148,9 +189,15 @@ public class VncDB {
     public boolean Initialize() {
 
         // Check if api-server is alive
-        if (isVncApiServerAlive() == false)
+        if (isVncApiServerAlive() == false) {
             return false;
+        }
 
+        if (mode != Mode.VCENTER_ONLY) {
+            return true;
+        }
+        
+        // create objects specific to VCENTER_ONLY mode
         // Check if Vmware Project exists on VNC. If not, create one.
         try {
             vCenterProject = (Project) apiConnector.findByFQN(Project.class, 
@@ -162,6 +209,7 @@ public class VncDB {
             return false;
         }
         s_logger.info(" fqn-to-uuid complete..");
+        
         if (vCenterProject == null) {
             s_logger.info(" vCenter project not present, creating ");
             vCenterProject = new Project();
@@ -1681,8 +1729,9 @@ public class VncDB {
                     continue;
                 }
                 // Ignore objects where creator isn't "vcenter-plugin"
-                if ((vn.getIdPerms().getCreator() == null)  ||
-                    !(vn.getIdPerms().getCreator().equals(VNC_VCENTER_PLUGIN))) {
+                if ((mode == Mode.VCENTER_ONLY) && 
+                        ((vn.getIdPerms().getCreator() == null)  ||
+                    !(vn.getIdPerms().getCreator().equals(VNC_VCENTER_PLUGIN)))) {
                     continue;
                 }
                 VmwareVirtualNetworkInfo vnInfo = new VmwareVirtualNetworkInfo(vn);
@@ -1719,14 +1768,14 @@ public class VncDB {
                 apiConnector.read(vm);
               
                 // Ignore objects where creator isn't "vcenter-plugin"
-                if ((vm.getIdPerms().getCreator() == null)  ||
-                    !(vm.getIdPerms().getCreator().equals(VNC_VCENTER_PLUGIN))) {
+                if ((mode == Mode.VCENTER_ONLY) && 
+                        ((vm.getIdPerms().getCreator() == null)  ||
+                        !(vm.getIdPerms().getCreator().equals(VNC_VCENTER_PLUGIN)))) {
                     continue;
                 }
                 
                 VmwareVirtualMachineInfo vmInfo = new VmwareVirtualMachineInfo(vm);
                 readVirtualMachineInterfaces(vmInfo);
-                //readInstanceIp(vmInfo);
 
                 map.put(vmInfo.getUuid(), vmInfo);
             } catch (Exception e) {

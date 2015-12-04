@@ -187,8 +187,19 @@ public class VCenterMonitor {
         _vcenterDB = new VCenterDB(_vcenterURL, _vcenterUsername, _vcenterPassword,
                 _vcenterDcName, _vcenterDvsName, _vcenterIpFabricPg, mode);
         
-        _vncDB = new VncDB(_apiServerAddress, _apiServerPort, mode);
-        
+        switch (mode) {
+        case VCENTER_ONLY:
+            _vncDB = new VncDB(_apiServerAddress, _apiServerPort, mode);
+            break;
+        case VCENTER_AS_COMPUTE:
+            _vncDB = new VncDB(_apiServerAddress, _apiServerPort, _username, _password,
+                    _tenant,
+                    _authtype, _authurl, mode);
+            break;
+        default:
+            _vncDB = new VncDB(_apiServerAddress, _apiServerPort, mode);
+        }
+
         // Launch the periodic VCenterMonitorTask
         VCenterMonitorTask _monitorTask = new VCenterMonitorTask(_vcenterDB, _vncDB, mode);
             
