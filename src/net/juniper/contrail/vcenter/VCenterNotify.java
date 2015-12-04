@@ -12,6 +12,7 @@ import java.util.concurrent.TimeUnit;
 
 import com.vmware.vim25.mo.Datacenter;
 import com.vmware.vim25.ArrayOfEvent;
+import com.vmware.vim25.ArrayOfGuestNicInfo;
 import com.vmware.vim25.Event;
 import com.vmware.vim25.EventFilterSpec;
 import com.vmware.vim25.EventFilterSpecByEntity;
@@ -27,6 +28,7 @@ import com.vmware.vim25.PropertySpec;
 import com.vmware.vim25.RequestCanceled;
 import com.vmware.vim25.SelectionSpec;
 import com.vmware.vim25.UpdateSet;
+import com.vmware.vim25.VirtualMachineToolsRunningStatus;
 import com.vmware.vim25.VmEvent;
 import com.vmware.vim25.VmMacChangedEvent;
 import com.vmware.vim25.VmPoweredOnEvent;
@@ -48,9 +50,11 @@ import com.vmware.vim25.mo.ServiceInstance;
 import com.vmware.vim25.VmMigratedEvent;
 import com.vmware.vim25.EnteredMaintenanceModeEvent;
 import com.vmware.vim25.ExitMaintenanceModeEvent;
+import com.vmware.vim25.GuestNicInfo;
 import com.vmware.vim25.HostConnectedEvent;
 import com.vmware.vim25.HostConnectionLostEvent;
 import com.vmware.vim25.InvalidProperty;
+import com.vmware.vim25.ManagedObjectReference;
 import com.vmware.vim25.RuntimeFault;
 
 import com.google.common.base.Throwables;
@@ -73,10 +77,11 @@ public class VCenterNotify implements Runnable
     private final String vcenterUrl;
     private final String vcenterUsername;
     private final String vcenterPassword;
-    private volatile static ServiceInstance serviceInstance;
+    volatile static ServiceInstance serviceInstance;
     private Folder rootFolder;
     private InventoryNavigator inventoryNavigator;
     private Datacenter _contrailDC;
+    private GuestOsWatcher guestOsWatcher;
 
     // EventManager and EventHistoryCollector References
     private EventManager _eventManager;
@@ -152,6 +157,8 @@ public class VCenterNotify implements Runnable
         this.contrailDataCenterName = contrailDcName;
 
         notifExec = Executors.newScheduledThreadPool(1);
+        
+        guestOsWatcher = new GuestOsWatcher();
     }
 
     /**
@@ -169,6 +176,7 @@ public class VCenterNotify implements Runnable
                     s_logger.error("Failed to connect to vCenter Server : " + "("
                             + vcenterUrl + "," + vcenterUsername + ","
                             + vcenterPassword + ")");
+                    return false;
                 }
             } catch (MalformedURLException e) {
                 return false;
@@ -226,6 +234,9 @@ public class VCenterNotify implements Runnable
         if (_eventManager == null) {
             _eventManager = serviceInstance.getEventManager();
         }
+        
+        guestOsWatcher.init(serviceInstance);
+        
         return true;
     }
 
@@ -235,7 +246,10 @@ public class VCenterNotify implements Runnable
         inventoryNavigator = null;
         _contrailDC        = null;
         _eventManager      = null;
+        
+        guestOsWatcher.cleanup();
     }
+    
     private void createEventHistoryCollector() throws Exception
     {
         // Create an Entity Event Filter Spec to
@@ -303,41 +317,38 @@ public class VCenterNotify implements Runnable
         {
             System.out.println("Virtual Machine updates:");
             vmUpdates = pfus[pfui].getObjectSet();
+            
             for (ObjectUpdate vmi : vmUpdates)
             {
                 System.out.println("Handling object update");
-                handleObjectUpdate(vmi);
+                handleChanges(vmi);
             }
         }
     }
 
-    void handleObjectUpdate(ObjectUpdate oUpdate)
+    void handleChanges(ObjectUpdate oUpdate)
     {
-        PropertyChange[] pc = oUpdate.getChangeSet();
+        
         System.out.println("Update kind = " + oUpdate.getKind());
         if (oUpdate.getKind() == ObjectUpdateKind.enter)
         {
             System.out.println(" New Data:");
-            handleChanges(pc);
         } else if (oUpdate.getKind() == ObjectUpdateKind.leave)
         {
             System.out.println(" Removed Data:");
-            handleChanges(pc);
         } else if (oUpdate.getKind() == ObjectUpdateKind.modify)
         {
             System.out.println(" Changed Data:");
-            handleChanges(pc);
         }
-
-    }
-
-    void handleChanges(PropertyChange[] changes)
-    {
+        
+        PropertyChange[] changes = oUpdate.getChangeSet();
         if (changes == null) {
             s_logger.error("handleChanges received null change array from vCenter");
             return;
         }
 
+        String toolsRunningStatus = null;
+        GuestNicInfo[] nics = null;        
         for (int pci = 0; pci < changes.length; ++pci)
         {
             if (changes[pci] == null) {
@@ -349,6 +360,7 @@ public class VCenterNotify implements Runnable
                 s_logger.error("handleChanges received null change value from vCenter");
                 continue;
             }
+            
             PropertyChangeOp op = changes[pci].getOp();
             if (op!= PropertyChangeOp.remove) {
                 s_logger.info("===============");
@@ -392,7 +404,22 @@ public class VCenterNotify implements Runnable
                     } else {
                         s_logger.info("\nNot managing the host " + vRouterIpAddress +" inactive");
                     }
-                } else {
+                } else if (value instanceof ArrayOfGuestNicInfo) {
+                    ArrayOfGuestNicInfo aog = (ArrayOfGuestNicInfo) value;
+                    nics = aog.getGuestNicInfo();
+                    
+                } else if (value instanceof String) {
+                    String propName = changes[pci].getName();
+                    String sValue = (String)value;
+                    s_logger.info("\n----------"
+                            + "\n Event property update " + propName + " with value " + sValue);
+                    
+                    if (propName.equals("guest.toolsRunningStatus")) {
+                        toolsRunningStatus = sValue;
+                    } else {
+                        s_logger.info("\n Unhandled property change " + propName + " with value " + sValue);
+                    }
+                } else if (value instanceof Event) {
                     Event anEvent = (Event) value;
                     s_logger.info("\n----------"
                             + "\n Event ID: " + anEvent.getKey()
@@ -402,15 +429,37 @@ public class VCenterNotify implements Runnable
                     notifExec.schedule(new VCenterEventHandler(anEvent, 
                             vcenterDB, vncDB), 
                             0, TimeUnit.SECONDS);
+                } else {
+                    s_logger.info("\n Received unhandled property of type " + value.getClass().getName());
                 }
                 s_logger.info("===============");
             } else if (op == PropertyChangeOp.remove) {
 
             }
         }
+     
+        if (toolsRunningStatus != null || nics != null) {
+            ManagedObjectReference mor = oUpdate.getObj();
+            if (GuestOsWatcher.watchedVMs.containsKey(mor.getVal())) {
+                VmwareVirtualMachineInfo vmInfo = GuestOsWatcher.watchedVMs.get(mor.getVal());
+                if (toolsRunningStatus != null) {
+                    vmInfo.setToolsRunningStatus(toolsRunningStatus);
+                }
+                if (vmInfo.getToolsRunningStatus().equals(VirtualMachineToolsRunningStatus.guestToolsRunning.toString())
+                        && nics != null) {
+                    try {
+                    vmInfo.updatedGuestNics(nics,vncDB);
+                    } catch (Exception e) {
+                        // log unable to process event;
+                        // this triggers a sync
+                        s_logger.info("Exception received, resync triggered" + e.getMessage());
+                        VCenterMonitorTask.syncNeeded = true;
+                    }
+                }
+            }
+        }
         s_logger.info("+++++++++++++Update Processing Complete +++++++++++++++++++++");
     }
-
 
     public void start() {
         try

@@ -1674,6 +1674,7 @@ public class VCenterDB {
             }
             
             map.put(vmInfo.getUuid(), vmInfo);
+            GuestOsWatcher.addVm(vmInfo);
         }
     }
     

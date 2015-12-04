@@ -12,6 +12,8 @@ import net.juniper.contrail.api.types.VirtualMachineInterface;
 import java.io.IOException;
 
 import com.vmware.vim25.GuestNicInfo;
+import com.vmware.vim25.NetIpConfigInfo;
+import com.vmware.vim25.NetIpConfigInfoIpAddress;
 import com.vmware.vim25.VirtualMachineToolsRunningStatus;
 
 import net.juniper.contrail.api.types.InstanceIp;
@@ -73,7 +75,50 @@ public class VmwareVirtualMachineInterfaceInfo extends VCenterObject {
     public void setIpAddress(String ipAddress) {
         this.ipAddress = ipAddress;
     }
+
+    public void updatedGuestNic(GuestNicInfo nic, VncDB vncDB) 
+                throws Exception {
+        if (nic == null) {
+            return;
+        }
+        NetIpConfigInfo ipConfig = nic.getIpConfig();
+        if (ipConfig == null ) {
+            return;
+        }
+        NetIpConfigInfoIpAddress[] ipAddrs = nic.getIpConfig().getIpAddress();
+        if (ipAddrs == null && ipAddrs.length <= 0) {
+            return;
+        }
+        String newIpAddress = ipAddrs[0].getIpAddress();
+        if (newIpAddress !=null && newIpAddress.equals(ipAddress)) {
+            return;
+        }
         
+        // ip address has changed
+        if (ipAddress != null) {
+            if (up) {
+                VRouterNotifier.deleted(this);
+                up = false;
+            }
+                   
+            vncDB.deleteInstanceIp(this);
+        }
+        
+        ipAddress = newIpAddress;
+        
+        if ((vnInfo.getExternalIpam() == false || (ipAddress != null))) {
+            vncDB.createInstanceIp(this);
+        }
+    
+        if (!up && (vmInfo.isPoweredOnState() && ipAddress != null)) {
+            up = true;
+            VRouterNotifier.created(this);
+        } else if (up && (!vmInfo.isPoweredOnState() || ipAddress == null)) {
+            VRouterNotifier.deleted(this);
+            up = false;
+        }        
+    }
+
     public boolean equals(VmwareVirtualMachineInterfaceInfo vmi) {
         if (vmi == null) {
             return false;

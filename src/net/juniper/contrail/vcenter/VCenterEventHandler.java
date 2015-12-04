@@ -95,10 +95,6 @@ public class VCenterEventHandler implements Runnable {
         MainDB.printInfo();
     }
 
-    private void watchVm() {
-        //TODO as per CacheFrameworkSample
-    }
-
     private void handleVmCreateEvent() throws Exception {
         
         VmwareVirtualMachineInfo newVmInfo = new VmwareVirtualMachineInfo(event, vcenterDB);
@@ -107,7 +103,7 @@ public class VCenterEventHandler implements Runnable {
         
         // add a watch on this Vm guest OS to be notified of guest OS changes,
         // for instance IP address changes
-        watchVm();
+        GuestOsWatcher.watchVm(newVmInfo);
     }
 
     private void handleVmUpdateEvent() throws Exception {
@@ -123,13 +119,13 @@ public class VCenterEventHandler implements Runnable {
             
             // add a watch on this Vm guest OS to be notified of guest OS changes,
             // for instance IP address changes
-            watchVm();
+            GuestOsWatcher.watchVm(newVmInfo);
         }
     }
 
     private void handleVmDeleteEvent() throws Exception {
         VmwareVirtualMachineInfo vmInfo = new VmwareVirtualMachineInfo(event, vcenterDB);
-          
+        GuestOsWatcher.unwatchVm(vmInfo);  
         vmInfo.delete(vncDB);
     }
 

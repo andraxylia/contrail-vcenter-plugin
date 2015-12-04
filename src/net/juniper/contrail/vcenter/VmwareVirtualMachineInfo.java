@@ -19,6 +19,8 @@ import com.vmware.vim25.Event;
 import com.vmware.vim25.GuestNicInfo;
 import com.vmware.vim25.InvalidProperty;
 import com.vmware.vim25.ManagedObjectReference;
+import com.vmware.vim25.NetIpConfigInfo;
+import com.vmware.vim25.NetIpConfigInfoIpAddress;
 import com.vmware.vim25.RuntimeFault;
 import net.juniper.contrail.api.ApiPropertyBase;
 import net.juniper.contrail.api.ObjectReference;
@@ -95,8 +97,6 @@ public class VmwareVirtualMachineInfo extends VCenterObject {
         VirtualMachineRuntimeInfo vmRuntimeInfo = vm.getRuntime();
         powerState = vmRuntimeInfo.getPowerState();
         toolsRunningStatus = vm.getGuest().getToolsRunningStatus();
-        // TODO 
-        //vm.getGuest().getIpAddress()
 
         vmiInfoMap = new ConcurrentSkipListMap<String, VmwareVirtualMachineInterfaceInfo>();
         vcenterDB.readVirtualMachineInterfaces(this);
@@ -245,6 +245,25 @@ public class VmwareVirtualMachineInfo extends VCenterObject {
 
     public void setVmiInfo(SortedMap<String, VmwareVirtualMachineInterfaceInfo> vmiInfoMap) {
         this.vmiInfoMap = vmiInfoMap;
+    }
+    
+    public void updatedGuestNics(GuestNicInfo[] nics, VncDB vncDB) 
+            throws Exception {
+        if (nics == null) {
+            return;
+        }
+        
+        for (GuestNicInfo nic: nics) {
+            if (nic == null) {
+                continue;
+            }
+            String mac = nic.getMacAddress();
+            
+            if (vmiInfoMap.containsKey(mac)) {
+                VmwareVirtualMachineInterfaceInfo oldVmi = vmiInfoMap.get(mac);
+                oldVmi.updatedGuestNic(nic, vncDB);
+            }
+        }
     }
     
     public void created(VmwareVirtualMachineInterfaceInfo vmiInfo) {
@@ -432,7 +451,6 @@ public class VmwareVirtualMachineInfo extends VCenterObject {
             newVmInfo.vmiInfoMap.entrySet()) {
            VmwareVirtualMachineInterfaceInfo vmiInfo = entry.getValue();
            vmiInfo.setVmInfo(this);
-           
         }
         
         MainDB.update(vmiInfoMap, newVmInfo.vmiInfoMap);
