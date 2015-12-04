@@ -6,11 +6,14 @@ package net.juniper.contrail.vcenter;
 import java.net.URL;
 import java.net.MalformedURLException;
 import java.rmi.RemoteException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import com.vmware.vim25.mo.Datacenter;
+import com.vmware.vim.cf.ManagedObjectWatcher;
 import com.vmware.vim25.ArrayOfEvent;
 import com.vmware.vim25.ArrayOfGuestNicInfo;
 import com.vmware.vim25.Event;
@@ -44,6 +47,7 @@ import com.vmware.vim25.mo.EventHistoryCollector;
 import com.vmware.vim25.mo.EventManager;
 import com.vmware.vim25.mo.Folder;
 import com.vmware.vim25.mo.InventoryNavigator;
+import com.vmware.vim25.mo.ManagedEntity;
 import com.vmware.vim25.mo.PropertyCollector;
 import com.vmware.vim25.mo.PropertyFilter;
 import com.vmware.vim25.mo.ServiceInstance;
@@ -81,7 +85,12 @@ public class VCenterNotify implements Runnable
     private Folder rootFolder;
     private InventoryNavigator inventoryNavigator;
     private Datacenter _contrailDC;
-    private GuestOsWatcher guestOsWatcher;
+    private static ManagedObjectWatcher mom = null;
+
+    static volatile ConcurrentMap<String, VmwareVirtualMachineInfo> watchedVMs 
+            = new ConcurrentHashMap<String, VmwareVirtualMachineInfo>();
+    
+    private final static String[] guestProps = { "guest.toolsRunningStatus", "guest.net" };
 
     // EventManager and EventHistoryCollector References
     private EventManager _eventManager;
@@ -157,8 +166,6 @@ public class VCenterNotify implements Runnable
         this.contrailDataCenterName = contrailDcName;
 
         notifExec = Executors.newScheduledThreadPool(1);
-        
-        guestOsWatcher = new GuestOsWatcher();
     }
 
     /**
@@ -235,11 +242,24 @@ public class VCenterNotify implements Runnable
             _eventManager = serviceInstance.getEventManager();
         }
         
-        guestOsWatcher.init(serviceInstance);
-        
+        mom = new ManagedObjectWatcher(serviceInstance.getPropertyCollector());
+        updateFilter();
+                
         return true;
     }
 
+    private static void updateFilter() {
+        mom.cleanUp();
+        if (watchedVMs.size() > 0) {
+            ManagedEntity[] mes = new ManagedEntity[watchedVMs.size()];
+            int i = 0;
+            for (VmwareVirtualMachineInfo vmInfo : watchedVMs.values()) {
+                mes[i++] = vmInfo.vm;
+            }
+            mom.watch(mes, guestProps);
+        }
+    }
+    
     public void Cleanup() {
         serviceInstance    = null;
         rootFolder         = null;
@@ -247,9 +267,24 @@ public class VCenterNotify implements Runnable
         _contrailDC        = null;
         _eventManager      = null;
         
-        guestOsWatcher.cleanup();
+        mom.cleanUp();
+        mom = null;
     }
     
+    public static void addVm(VmwareVirtualMachineInfo vmInfo) {
+        watchedVMs.put(vmInfo.vm.getMOR().getVal(), vmInfo);
+    }
+
+    public static void watchVm(VmwareVirtualMachineInfo vmInfo) {
+        watchedVMs.put(vmInfo.vm.getMOR().getVal(), vmInfo);
+        updateFilter();
+    }
+
+    public static void unwatchVm(VmwareVirtualMachineInfo vmInfo) {
+        watchedVMs.remove(vmInfo.vm.getMOR());
+        updateFilter();
+    }
+
     private void createEventHistoryCollector() throws Exception
     {
         // Create an Entity Event Filter Spec to
@@ -440,8 +475,8 @@ public class VCenterNotify implements Runnable
      
         if (toolsRunningStatus != null || nics != null) {
             ManagedObjectReference mor = oUpdate.getObj();
-            if (GuestOsWatcher.watchedVMs.containsKey(mor.getVal())) {
-                VmwareVirtualMachineInfo vmInfo = GuestOsWatcher.watchedVMs.get(mor.getVal());
+            if (watchedVMs.containsKey(mor.getVal())) {
+                VmwareVirtualMachineInfo vmInfo = watchedVMs.get(mor.getVal());
                 if (toolsRunningStatus != null) {
                     vmInfo.setToolsRunningStatus(toolsRunningStatus);
                 }

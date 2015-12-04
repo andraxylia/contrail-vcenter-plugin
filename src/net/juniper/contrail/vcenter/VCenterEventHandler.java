@@ -103,7 +103,7 @@ public class VCenterEventHandler implements Runnable {
         
         // add a watch on this Vm guest OS to be notified of guest OS changes,
         // for instance IP address changes
-        GuestOsWatcher.watchVm(newVmInfo);
+        VCenterNotify.watchVm(newVmInfo);
     }
 
     private void handleVmUpdateEvent() throws Exception {
@@ -119,13 +119,13 @@ public class VCenterEventHandler implements Runnable {
             
             // add a watch on this Vm guest OS to be notified of guest OS changes,
             // for instance IP address changes
-            GuestOsWatcher.watchVm(newVmInfo);
+            VCenterNotify.watchVm(newVmInfo);
         }
     }
 
     private void handleVmDeleteEvent() throws Exception {
         VmwareVirtualMachineInfo vmInfo = new VmwareVirtualMachineInfo(event, vcenterDB);
-        GuestOsWatcher.unwatchVm(vmInfo);  
+        VCenterNotify.unwatchVm(vmInfo);  
         vmInfo.delete(vncDB);
     }
 
