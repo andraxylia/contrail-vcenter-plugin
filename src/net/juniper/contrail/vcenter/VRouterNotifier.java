@@ -10,12 +10,16 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.UUID;
+import org.apache.log4j.Logger;
 import net.juniper.contrail.contrail_vrouter_api.ContrailVRouterApi;
 
 public class VRouterNotifier {
     static volatile HashMap<String, ContrailVRouterApi> vrouterApiMap = 
             new HashMap<String, ContrailVRouterApi>();
     static final int vrouterApiPort = 9090;
+    
+    private final static Logger s_logger =
+            Logger.getLogger(VRouterNotifier.class);
 
     public static void created(VmwareVirtualMachineInterfaceInfo vmiInfo) {
 
@@ -32,18 +36,17 @@ public class VRouterNotifier {
         VmwareVirtualNetworkInfo vnInfo = vmiInfo.vnInfo;
         
         if (vrouterIpAddress == null) {
-            /*s_logger.warn(vmiInfo +
-                + " addPort notification NOT sent as vRouterIp Address not known");*/
+            s_logger.warn(vmiInfo +
+                " addPort notification NOT sent as vRouterIp Address not known");
             return;
         }
         if (ipAddress == null) {
-            /*s_logger.warn(vmiInfo +
-                + " addPort notification NOT sent as IPAM external and IP Address not set "
-                + " or vmware Tools not installed");*/
+            s_logger.warn(vmiInfo +
+                " addPort notification NOT sent as IPAM external and IP Address not set or vmware Tools not installed");
             return;
         }
         if (!vmInfo.isPoweredOnState()) {
-            //s_logger.info(vmInfo + " is PoweredOff. Skip AddPort now.");
+            s_logger.info(vmInfo + " is PoweredOff. Skip AddPort now.");
             return;
         }
         try {
@@ -64,14 +67,14 @@ public class VRouterNotifier {
                     vnInfo.getIsolatedVlanId(),
                     vnInfo.getPrimaryVlanId(), vmInfo.getName());
             if ( ret == true) {
-                //s_logger.info("VRouterAPi Add Port success for " + vmiInfo);
+                s_logger.info("VRouterAPi Add Port success for " + vmiInfo);
             } else {
                 // log failure but don't worry. Periodic KeepAlive task will
                 // attempt to connect to vRouter Agent and replay AddPorts.
-                //s_logger.error("VRouterAPi Add Port failed for " + vmiInfo);
+                s_logger.error("VRouterAPI Add Port failed for " + vmiInfo);
             }
         } catch(Throwable e) {
-            //s_logger.error("Got exception in " + vmiInfo + ": " + e + " );
+            s_logger.error("Exception in addPort for " + vmiInfo + ": " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -81,7 +84,7 @@ public class VRouterNotifier {
                 || vmiInfo.vmInfo == null || vmiInfo.vmInfo.apiVm == null 
                 || vmiInfo.vnInfo == null || vmiInfo.vnInfo.apiVn == null) {
                 
-            // log error ("Null argument");
+            s_logger.error("Null argument, cannot perform deletePort");
             return;
         }
 
@@ -91,14 +94,13 @@ public class VRouterNotifier {
         VmwareVirtualNetworkInfo vnInfo = vmiInfo.vnInfo;
         
         if (vrouterIpAddress == null) {
-            /*s_logger.warn(vmiInfo +
-                + " deletePort notification NOT sent as vRouterIp Address not known");*/
+            s_logger.warn(vmiInfo +
+                " deletePort notification NOT sent as vRouterIp Address not known");
             return;
         }
         if (ipAddress == null) {
-            /*s_logger.warn(vmiInfo +
-                + " deletePort notification NOT sent as IPAM external and IP Address not set "
-                + " or vmware Tools not installed");*/
+            s_logger.warn(vmiInfo +
+                " deletePort notification NOT sent as IPAM external and IP Address not set or vmware Tools not installed");
             return;
         }
         
@@ -110,6 +112,7 @@ public class VRouterNotifier {
                     vrouterApiPort, false, 1000);
             } catch (UnknownHostException e) {
                 // log error ("Incorrect vrouter address");
+                s_logger.error("deletePort failed due to unknown vrouter " + vrouterIpAddress);
                 return;
             }
             vrouterApiMap.put(vrouterIpAddress, vrouterApi);

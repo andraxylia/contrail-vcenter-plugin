@@ -144,10 +144,10 @@ public class VmwareVirtualMachineInterfaceInfo extends VCenterObject {
     }
 
     public String toString() {
-        return "VMI <VM " + vmInfo.getName() + ", VN " + vnInfo.getName() 
+        return "VMI <" + vmInfo.getName() + ", " + vnInfo.getName() 
             + ", " + uuid + ">";
     }
-    
+
     @Override
     void create(VncDB vncDB) throws Exception {
         vncDB.createVirtualMachineInterface(this);

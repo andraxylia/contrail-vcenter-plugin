@@ -352,16 +352,18 @@ public class VmwareVirtualMachineInfo extends VCenterObject {
     
     public StringBuffer toStringBuffer() {
         StringBuffer s = new StringBuffer(
-                "VM <" + name + ", host " + hostName + ", " + uuid + ">\n");
-        Iterator<Entry<String, VmwareVirtualMachineInterfaceInfo>> iter =
-                vmiInfoMap.entrySet().iterator();
-        while (iter.hasNext()) {
-            Entry<String, VmwareVirtualMachineInterfaceInfo> entry = iter.next();
-            s.append(entry.getValue().toString());
+                "VM <" + name + ", host " + hostName + ", " + uuid + ">\n\n");
+        for (Map.Entry<String, VmwareVirtualMachineInterfaceInfo> entry:
+            vmiInfoMap.entrySet()) {
+        
+            VmwareVirtualMachineInterfaceInfo vmiInfo = entry.getValue();
+            s.append("\t")
+             .append(vmiInfo).append("\n");
         }
+        s.append("\n");
         return s;
     }
-    
+
     boolean ignore() {
         if (vrouterIpAddress == null) {
             return true;

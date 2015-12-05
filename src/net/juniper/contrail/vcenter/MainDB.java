@@ -11,8 +11,8 @@ import java.util.Map;
 import java.util.SortedMap;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentSkipListMap;
+import org.apache.log4j.Logger;
 import net.juniper.contrail.api.types.VirtualMachine;
-import net.juniper.contrail.api.types.VirtualMachineInterface;
 import net.juniper.contrail.api.types.VirtualNetwork;
 
 public class MainDB {
@@ -24,7 +24,9 @@ public class MainDB {
     private static volatile VncDB vncDB;
     private static volatile VCenterDB vcenterDB;
     private static volatile Mode mode;
-
+    private final static Logger s_logger =
+            Logger.getLogger(MainDB.class);
+    
     public static VmwareVirtualNetworkInfo getVnByName(String name) {
         for (VmwareVirtualNetworkInfo vnInfo: vmwareVNs.values()) {
             if (vnInfo.getName().equals(name)) {
@@ -198,25 +200,20 @@ public class MainDB {
         vmwareVMs = vcenterDB.readVirtualMachines();
         SortedMap<String, VmwareVirtualMachineInfo> oldVMs = vncDB.readVirtualMachines();
         sync(oldVMs, vmwareVMs);
-        
-        /*
-        vncDB.clearInstanceIps();
-        vncDB.clearVirtualMachineInterfaces();
-        vncDB.clearVirtualMachines();
-        vncDB.clearVirtualNetworks();*/
-        
+         
         printInfo();
     }
     
-    public static void printInfo() {
-        System.out.println("Networks:");
+    private static void printInfo() {
+        System.out.println("\nNetworks after sync:");
         for (VmwareVirtualNetworkInfo vnInfo: vmwareVNs.values()) {
-            System.out.println(vnInfo.toStringBuffer().toString());
+            System.out.println(vnInfo.toStringBuffer());
         }
         
-        System.out.println("VMs:");
+        System.out.println("\nVirtual Machines after sync:");
         for (VmwareVirtualMachineInfo vmInfo: vmwareVMs.values()) {
-            System.out.println(vmInfo.toStringBuffer().toString());
+            System.out.println(vmInfo.toStringBuffer());
         }
+        System.out.println("\n");
     }
 }

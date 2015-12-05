@@ -344,18 +344,16 @@ public class VCenterNotify implements Runnable
         return spec;
     }
 
-    void handleUpdate(UpdateSet update)
+    private void handleUpdate(UpdateSet update)
     {
         ObjectUpdate[] vmUpdates;
         PropertyFilterUpdate[] pfus = update.getFilterSet();
         for (int pfui = 0; pfui < pfus.length; pfui++)
         {
-            System.out.println("Virtual Machine updates:");
             vmUpdates = pfus[pfui].getObjectSet();
             
             for (ObjectUpdate vmi : vmUpdates)
             {
-                System.out.println("Handling object update");
                 handleChanges(vmi);
             }
         }
@@ -363,18 +361,8 @@ public class VCenterNotify implements Runnable
 
     void handleChanges(ObjectUpdate oUpdate)
     {
-        
-        System.out.println("Update kind = " + oUpdate.getKind());
-        if (oUpdate.getKind() == ObjectUpdateKind.enter)
-        {
-            System.out.println(" New Data:");
-        } else if (oUpdate.getKind() == ObjectUpdateKind.leave)
-        {
-            System.out.println(" Removed Data:");
-        } else if (oUpdate.getKind() == ObjectUpdateKind.modify)
-        {
-            System.out.println(" Changed Data:");
-        }
+        s_logger.info("+++++++++++++Received vcenter update of type " 
+                + oUpdate.getKind() + "+++++++++++++");
         
         PropertyChange[] changes = oUpdate.getChangeSet();
         if (changes == null) {
@@ -398,8 +386,6 @@ public class VCenterNotify implements Runnable
             
             PropertyChangeOp op = changes[pci].getOp();
             if (op!= PropertyChangeOp.remove) {
-                s_logger.info("===============");
-                s_logger.info("\nEvent Details follows:");
                 if (value instanceof ArrayOfEvent) {
                     ArrayOfEvent aoe = (ArrayOfEvent) value;
                     Event[] evts = aoe.getEvent();
@@ -440,34 +426,27 @@ public class VCenterNotify implements Runnable
                         s_logger.info("\nNot managing the host " + vRouterIpAddress +" inactive");
                     }
                 } else if (value instanceof ArrayOfGuestNicInfo) {
+                    s_logger.info("Received update array of GuestNics");
                     ArrayOfGuestNicInfo aog = (ArrayOfGuestNicInfo) value;
                     nics = aog.getGuestNicInfo();
                     
                 } else if (value instanceof String) {
                     String propName = changes[pci].getName();
                     String sValue = (String)value;
-                    s_logger.info("\n----------"
-                            + "\n Event property update " + propName + " with value " + sValue);
-                    
+                   
                     if (propName.equals("guest.toolsRunningStatus")) {
                         toolsRunningStatus = sValue;
                     } else {
-                        s_logger.info("\n Unhandled property change " + propName + " with value " + sValue);
+                        s_logger.warn("\n Unhandled property change " + propName + " with value " + sValue);
                     }
                 } else if (value instanceof Event) {
                     Event anEvent = (Event) value;
-                    s_logger.info("\n----------"
-                            + "\n Event ID: " + anEvent.getKey()
-                            + "\n Event: " + anEvent.getClass().getName()
-                            + "\n FullFormattedMessage: " + anEvent.getFullFormattedMessage()
-                            + "\n----------\n");
                     notifExec.schedule(new VCenterEventHandler(anEvent, 
                             vcenterDB, vncDB), 
                             0, TimeUnit.SECONDS);
                 } else {
                     s_logger.info("\n Received unhandled property of type " + value.getClass().getName());
                 }
-                s_logger.info("===============");
             } else if (op == PropertyChangeOp.remove) {
 
             }

@@ -1906,4 +1906,15 @@ public class VncDB {
             apiConnector.delete(vn);
         }
     }
+    
+    public void clearAll() {
+        try {
+        clearInstanceIps();
+        clearVirtualMachineInterfaces();
+        clearVirtualMachines();
+        clearVirtualNetworks();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 }

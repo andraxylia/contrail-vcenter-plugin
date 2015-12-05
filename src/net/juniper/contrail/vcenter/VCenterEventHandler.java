@@ -8,6 +8,7 @@
 package net.juniper.contrail.vcenter;
 
 import java.io.IOException;
+import org.apache.log4j.Logger;
 import com.vmware.vim25.DVPortgroupCreatedEvent;
 import com.vmware.vim25.DVPortgroupDestroyedEvent;
 import com.vmware.vim25.DVPortgroupReconfiguredEvent;
@@ -31,6 +32,8 @@ public class VCenterEventHandler implements Runnable {
     Event event;
     VCenterDB vcenterDB;
     VncDB vncDB;
+    private final Logger s_logger =
+            Logger.getLogger(VCenterEventHandler.class);
 
     VCenterEventHandler(Event event, VCenterDB vcenterDB, VncDB vncDB) {
         this.event = event;
@@ -39,25 +42,21 @@ public class VCenterEventHandler implements Runnable {
     }
 
     private void printEvent() {
-        /*
         s_logger.info("===============");
         s_logger.info("\nEvent Details follows:");
 
         s_logger.info("\n----------" + "\n Event ID: "
-                + evt.getKey() + "\n Event: "
-                + evt.getClass().getName()
+                + event.getKey() + "\n Event: "
+                + event.getClass().getName()
                 + "\n FullFormattedMessage: "
-                + evt.getFullFormattedMessage()
+                + event.getFullFormattedMessage()
                 + "\n----------\n");
-         */
     }
 
     @Override
     public void run() {
         printEvent();
-
-        MainDB.printInfo();
-        
+       
         try {
             if (event instanceof VmBeingCreatedEvent
                 || event instanceof VmCreatedEvent
@@ -88,11 +87,11 @@ public class VCenterEventHandler implements Runnable {
         } catch (Exception e) {
             // log unable to process event;
             // this triggers a sync
+            s_logger.error("Exception in event handling, re-sync needed: "
+                    + e.getMessage());
             VCenterMonitorTask.syncNeeded = true;
             return;
         }
-        
-        MainDB.printInfo();
     }
 
     private void handleVmCreateEvent() throws Exception {

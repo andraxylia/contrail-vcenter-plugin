@@ -397,13 +397,15 @@ public class VmwareVirtualNetworkInfo extends VCenterObject {
     
     public StringBuffer toStringBuffer() {
         StringBuffer s = new StringBuffer(
-                "VN <" + name + ", " + uuid + ">\n");
+                "VN <" + name + ", " + uuid + ">\n\n");
         
         for (Map.Entry<String, VmwareVirtualMachineInterfaceInfo> entry: 
             vmiInfoMap.entrySet()) {
             VmwareVirtualMachineInterfaceInfo vmiInfo = entry.getValue();
-            s.append(vmiInfo.toString());
+            s.append("\t")
+             .append(vmiInfo).append("\n");
         }
+        s.append("\n");
         return s;
     }
 
