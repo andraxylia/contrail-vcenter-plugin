@@ -27,6 +27,14 @@ public class MainDB {
     private final static Logger s_logger =
             Logger.getLogger(MainDB.class);
     
+    public static SortedMap<String, VmwareVirtualNetworkInfo> getVNs() {
+        return vmwareVNs;
+    }
+
+    public static SortedMap<String, VmwareVirtualMachineInfo> getVMs() {
+        return vmwareVMs;
+    }
+
     public static VmwareVirtualNetworkInfo getVnByName(String name) {
         for (VmwareVirtualNetworkInfo vnInfo: vmwareVNs.values()) {
             if (vnInfo.getName().equals(name)) {

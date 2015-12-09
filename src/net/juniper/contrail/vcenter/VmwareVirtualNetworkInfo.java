@@ -297,6 +297,10 @@ public class VmwareVirtualNetworkInfo extends VCenterObject {
         this.range = _range;
     }
 
+    public SortedMap<String, VmwareVirtualMachineInterfaceInfo> getVmiInfo() {
+        return vmiInfoMap;
+    }
+
     public SortedMap<String, VmwareVirtualMachineInfo> getVmInfo() {
         return vmInfo;
     }
