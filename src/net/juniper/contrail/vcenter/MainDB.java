@@ -114,8 +114,10 @@ public class MainDB {
                 } else if (cmp < 0) {
                     newEntry.getValue().create(vncDB);
                     newEntry = newIter.hasNext()? newIter.next() : null;
-                } else {
-                    oldEntry.getValue().delete(vncDB);
+                } else { 
+                    if (mode != Mode.VCENTER_AS_COMPUTE) {
+                        oldEntry.getValue().delete(vncDB);
+                    }
                     oldEntry = oldIter.hasNext()? oldIter.next() : null;
                 }
             } catch (Exception e) {

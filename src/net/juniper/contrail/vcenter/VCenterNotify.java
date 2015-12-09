@@ -99,7 +99,6 @@ public class VCenterNotify implements Runnable
     private static PropertyCollector propColl;
     private static Boolean shouldRun;
     private static Thread watchUpdates = null;
-    ScheduledExecutorService notifExec;
 
     private static final String[] handledEvents = {
             // Host events
@@ -164,8 +163,6 @@ public class VCenterNotify implements Runnable
         this.vcenterUsername        = vcenterUsername;
         this.vcenterPassword        = vcenterPassword;
         this.contrailDataCenterName = contrailDcName;
-
-        notifExec = Executors.newScheduledThreadPool(1);
     }
 
     /**
@@ -440,10 +437,10 @@ public class VCenterNotify implements Runnable
                         s_logger.warn("\n Unhandled property change " + propName + " with value " + sValue);
                     }
                 } else if (value instanceof Event) {
-                    Event anEvent = (Event) value;
-                    notifExec.schedule(new VCenterEventHandler(anEvent, 
-                            vcenterDB, vncDB), 
-                            0, TimeUnit.SECONDS);
+                    VCenterEventHandler handler = new VCenterEventHandler(
+                            (Event) value, vcenterDB, vncDB);
+                    // for now we handle the events in the same thread
+                    handler.run();
                 } else {
                     s_logger.info("\n Received unhandled property of type " + value.getClass().getName());
                 }
