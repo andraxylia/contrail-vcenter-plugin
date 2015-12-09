@@ -64,7 +64,7 @@ public class VmwareVirtualMachineInfo extends VCenterObject {
         vmiInfoMap = new ConcurrentSkipListMap<String, VmwareVirtualMachineInterfaceInfo>();
     }
 
-    public VmwareVirtualMachineInfo(Event event,  VCenterDB vcenterDB) throws Exception {
+    public VmwareVirtualMachineInfo(Event event,  VCenterDB vcenterDB, VncDB vncDB) throws Exception {
         if (event.getDatacenter() != null) {
             dcName = event.getDatacenter().getName();
             dc = vcenterDB.getVmwareDatacenter(dcName);
@@ -100,6 +100,12 @@ public class VmwareVirtualMachineInfo extends VCenterObject {
 
         vmiInfoMap = new ConcurrentSkipListMap<String, VmwareVirtualMachineInterfaceInfo>();
         vcenterDB.readVirtualMachineInterfaces(this);
+        
+        for (Map.Entry<String, VmwareVirtualMachineInterfaceInfo> entry: 
+            vmiInfoMap.entrySet()) {
+            VmwareVirtualMachineInterfaceInfo vmiInfo = entry.getValue();
+            vncDB.readInstanceIp(vmiInfo);
+        }
     }
 
     public VmwareVirtualMachineInfo(net.juniper.contrail.api.types.VirtualMachine vm) {
@@ -111,7 +117,6 @@ public class VmwareVirtualMachineInfo extends VCenterObject {
         
         apiVm = vm;
         uuid = vm.getUuid();
-        vrouterIpAddress = vm.getDisplayName();
     }
 
     public VmwareVirtualMachineInfo(VCenterDB vcenterDB,
@@ -469,6 +474,9 @@ public class VmwareVirtualMachineInfo extends VCenterObject {
             apiVm = oldVmInfo.apiVm;
         }
         
+        if (vrouterIpAddress != null && oldVmInfo.vrouterIpAddress == null) {
+            oldVmInfo.vrouterIpAddress = vrouterIpAddress;
+        }
         // in what cases do we really update the VM
         //vncDB.updateVirtualMachine(this);
         

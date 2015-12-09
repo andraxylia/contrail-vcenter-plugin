@@ -105,7 +105,15 @@ public class VmwareVirtualNetworkInfo extends VCenterObject {
             name = event.getNet().getName();
             net = vcenterDB.getVmwareNetwork(name, dvs, dvsName, dcName);
         }
-            
+        
+        // Extract IP Pools
+        IpPool[] ipPools = vcenterDB.getIpPoolManager().queryIpPools(dc);
+        if ((vcenterDB.mode != Mode.VCENTER_AS_COMPUTE)
+                && (ipPools == null || ipPools.length == 0)) {
+            throw new Exception("dvSwitch: " + dvsName +
+                    " Datacenter: " + dcName + " IP Pools NOT " +
+                    "configured");
+        }
 
         dpg = vcenterDB.getVmwareDpg(name, dvs, dvsName, dcName);
         ManagedObject mo[] = new ManagedObject[1];
@@ -125,7 +133,7 @@ public class VmwareVirtualNetworkInfo extends VCenterObject {
             throw new RemoteException("Could not read properties for network " + name);
         }
         
-        populateInfo(vcenterDB, pTables[0]);
+        populateInfo(vcenterDB, pTables[0], ipPools);
     }
 
     public VmwareVirtualNetworkInfo(VCenterDB vcenterDB,
@@ -139,7 +147,7 @@ public class VmwareVirtualNetworkInfo extends VCenterObject {
         if (vcenterDB == null || dpg == null || pTable == null
                 || dvs == null || dvsName == null
                 || dc == null || dcName == null
-                || ipPools == null || pvlanMapArray == null) {
+                || pvlanMapArray == null) {
             throw new IllegalArgumentException();
         }
         vmInfo = new ConcurrentSkipListMap<String, VmwareVirtualMachineInfo>();
@@ -150,11 +158,11 @@ public class VmwareVirtualNetworkInfo extends VCenterObject {
         this.dvs = dvs;
         this.dvsName = dvsName;
         
-        populateInfo(vcenterDB, pTable);
+        populateInfo(vcenterDB, pTable, ipPools);
     }
     
     void populateInfo(VCenterDB vcenterDB,
-            Hashtable pTable) throws Exception {
+            Hashtable pTable, IpPool[] ipPools) throws Exception {
         
         vmInfo = new ConcurrentSkipListMap<String, VmwareVirtualMachineInfo>();
         
@@ -167,36 +175,43 @@ public class VmwareVirtualNetworkInfo extends VCenterObject {
 
         name = (String) pTable.get("name");
 
-        String key = (String) pTable.get("config.key");
-        byte[] vnKeyBytes = key.getBytes();
-        uuid = UUID.nameUUIDFromBytes(vnKeyBytes).toString();
+        switch(vcenterDB.mode) {
+        case VCENTER_AS_COMPUTE:
+            // UUID is allocated by OpenStack and saved in the name field
+            uuid = name;
+            break;
+        case VCENTER_ONLY:
+            // UUID is allocated by the plugin
+            String key = (String) pTable.get("config.key");
+            byte[] vnKeyBytes = key.getBytes();
+            uuid = UUID.nameUUIDFromBytes(vnKeyBytes).toString();
+            break;
+        default:
+            throw new Exception("Unhandled mode " + vcenterDB.mode.name());
+        }
 
         populateVlans(vcenterDB);
         
-        populateAddressManagement(vcenterDB, pTable);
+        populateAddressManagement(vcenterDB, pTable, ipPools);
     }
 
-    private void populateAddressManagement(VCenterDB vcenterDB, Hashtable pTable)
+    private void populateAddressManagement(VCenterDB vcenterDB,
+            Hashtable pTable, IpPool[] ipPools)
             throws RuntimeFault, RemoteException, Exception {
-        // Find associated IP Pool
-        // Extract IP Pools
-        IpPool[] ipPools = vcenterDB.getIpPoolManager().queryIpPools(dc);
-        if (ipPools == null || ipPools.length == 0) {
-            throw new Exception(" IP Pools NOT configured");
-        }
-        Integer poolId     = (Integer) pTable.get("summary.ipPoolId");
-        IpPool ipPool = vcenterDB.getIpPool(dpg, name, ipPools, poolId);
-        if (ipPool == null) {
-            return;
-        } else {
-            IpPoolIpPoolConfigInfo ipConfigInfo = ipPool.getIpv4Config();
-    
-            // ifconfig setting
-            subnetAddress = ipConfigInfo.getSubnetAddress();
-            subnetMask = ipConfigInfo.getNetmask();
-            gatewayAddress = ipConfigInfo.getGateway();
-            ipPoolEnabled = ipConfigInfo.getIpPoolEnabled();
-            range = ipConfigInfo.getRange();
+        
+        if (ipPools != null && ipPools.length > 0) {
+            Integer poolId     = (Integer) pTable.get("summary.ipPoolId");
+            IpPool ipPool = vcenterDB.getIpPool(dpg, name, ipPools, poolId);
+            if (ipPool != null) {
+                IpPoolIpPoolConfigInfo ipConfigInfo = ipPool.getIpv4Config();
+        
+                // ifconfig setting
+                subnetAddress = ipConfigInfo.getSubnetAddress();
+                subnetMask = ipConfigInfo.getNetmask();
+                gatewayAddress = ipConfigInfo.getGateway();
+                ipPoolEnabled = ipConfigInfo.getIpPoolEnabled();
+                range = ipConfigInfo.getRange();
+            }
         }
 
         // Read externalIpam flag from custom field
@@ -510,11 +525,7 @@ public class VmwareVirtualNetworkInfo extends VCenterObject {
         
         if (apiVn == null && oldVnInfo.apiVn != null) {
             apiVn = oldVnInfo.apiVn;
-        }
-        
-        // notify observers
-        // for networks we do not update the API server
-        
+        } 
     }
     
     @Override

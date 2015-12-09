@@ -66,7 +66,7 @@ public class VRouterNotifier {
                     UUID.fromString(vnInfo.getUuid()),
                     vnInfo.getIsolatedVlanId(),
                     vnInfo.getPrimaryVlanId(), vmInfo.getName());
-            if ( ret == true) {
+            if (ret) {
                 s_logger.info("VRouterAPi Add Port success for " + vmiInfo);
             } else {
                 // log failure but don't worry. Periodic KeepAlive task will
@@ -117,6 +117,14 @@ public class VRouterNotifier {
             }
             vrouterApiMap.put(vrouterIpAddress, vrouterApi);
         }
-        vrouterApi.DeletePort(UUID.fromString(vmiInfo.getUuid()));
+        boolean ret = vrouterApi.DeletePort(UUID.fromString(vmiInfo.getUuid()));
+        
+        if (ret) {
+            s_logger.info("VRouterAPi Delete Port success for " + vmiInfo);
+        } else {
+            // log failure but don't worry. Periodic KeepAlive task will
+            // attempt to connect to vRouter Agent and replay DeletePorts.
+            s_logger.error("VRouterAPI Delete Port failed for " + vmiInfo);
+        }
     }
 }

@@ -77,7 +77,7 @@ public class VCenterDB {
     private final String vcenterUsername;
     private final String vcenterPassword;
     private final String contrailIpFabricPgName;
-    private final Mode mode;
+    final Mode mode;
     
     static volatile ServiceInstance serviceInstance;
     private volatile Folder rootFolder;
@@ -1572,7 +1572,7 @@ public class VCenterDB {
         
         // Extract IP Pools
         IpPool[] ipPools = ipPoolManager.queryIpPools(contrailDC);
-        if (ipPools == null || ipPools.length == 0) {
+        if ((mode != Mode.VCENTER_AS_COMPUTE) && (ipPools == null || ipPools.length == 0)) {
             s_logger.debug("dvSwitch: " + contrailDvSwitchName +
                     " Datacenter: " + contrailDC.getName() + " IP Pools NOT " +
                     "configured");
@@ -1614,7 +1614,7 @@ public class VCenterDB {
                 });
     
         for (int i=0; i < dvPgs.length; i++) {
-         // Extract dvPg configuration info and port setting
+            // Extract dvPg configuration info and port setting
             DVPortSetting portSetting = (DVPortSetting) pTables[i].get("config.defaultPortConfig");
 
             if (doIgnoreVirtualNetwork(portSetting)) {
@@ -1628,7 +1628,7 @@ public class VCenterDB {
             
             map.put(vnInfo.getUuid(), vnInfo);
         }
-        
+
         return map;
     }
 
@@ -1654,7 +1654,7 @@ public class VCenterDB {
                 "guest.net"
                 });
         
-        for (int i=0; i < vms.length; i++) {   
+        for (int i=0; i < vms.length; i++) {
             VmwareVirtualMachineInfo vmInfo = new VmwareVirtualMachineInfo(this,
                     dc, dcName,
                     (VirtualMachine)vms[i], pTables[i]);
@@ -1701,28 +1701,44 @@ public class VCenterDB {
         Network[] nets = vm.getNetworks();
         
         for (Network net: nets) {
-            String netName = net.getName();
-            VmwareVirtualNetworkInfo vnInfo = MainDB.getVnByName(netName);
-            if (vnInfo == null) {
-                if (mode == Mode.VCENTER_ONLY) {
-                    // log error
-                } else {
-                    // network is managed by Openstack or other entity
+            
+            VmwareVirtualNetworkInfo vnInfo = null;
+            switch (mode) {
+            case VCENTER_ONLY:
+                String netName = net.getName();
+                vnInfo = MainDB.getVnByName(netName);
+                if (vnInfo == null) {
+                    if (mode == Mode.VCENTER_ONLY) {
+                        s_logger.error("Cannot retrive network with name " + netName);
+                        continue;
+                    }
                 }
-                continue;
+                break;
+            case VCENTER_AS_COMPUTE:
+                // network is managed by Openstack or other entity
+                // UUID is used in the name because name is not unique
+                String uuid = net.getName();
+                vnInfo = MainDB.getVnById(uuid);
+                if (vnInfo == null) {
+                    s_logger.error("Cannot retrive network with UUID " + uuid);
+                    continue;
+                }
+                break;
+            default:
+                throw new Exception("Unhandled mode " + mode.name());
             }
-   
+
             VmwareVirtualMachineInterfaceInfo vmiInfo = 
                     new VmwareVirtualMachineInterfaceInfo(vmInfo, vnInfo);
-            
+
             vmiInfo.setMacAddress(getVirtualMachineMacAddress(vm.getConfig(), vnInfo.getDpg()));
+            
             if (vnInfo.getExternalIpam() 
-                    && vmInfo.getToolsRunningStatus().equals(VirtualMachineToolsRunningStatus.guestToolsRunning)) {
+                && vmInfo.getToolsRunningStatus().equals(VirtualMachineToolsRunningStatus.guestToolsRunning)) {
                 // static IP Address & vmWare tools installed
                 // see if we can read it from Guest Nic Info
                 vmiInfo.setIpAddress(getVirtualMachineIpAddress(vm, vnInfo.getName()));
             }
-
             vmInfo.created(vmiInfo);
         }
     }

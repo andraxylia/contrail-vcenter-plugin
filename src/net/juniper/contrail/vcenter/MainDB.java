@@ -115,13 +115,15 @@ public class MainDB {
             }
         }
 
-        while (oldEntry != null) {
-            try {
-                oldEntry.getValue().delete(vncDB);
-            } catch (Exception e) {
-                //s_logger.error("Cannot delete " + entry2.getKey());
+        if (mode != Mode.VCENTER_AS_COMPUTE) {
+            while (oldEntry != null) {
+                try {
+                    oldEntry.getValue().delete(vncDB);
+                } catch (Exception e) {
+                    //s_logger.error("Cannot delete " + entry2.getKey());
+                }
+                oldEntry = oldIter.hasNext()? oldIter.next() : null;
             }
-            oldEntry = oldIter.hasNext()? oldIter.next() : null;
         }
         
         while (newEntry != null) {
@@ -189,21 +191,19 @@ public class MainDB {
         vmwareVNs.clear();
         vmwareVMs.clear();
         
-        if (mode == Mode.VCENTER_ONLY) {
-            vmwareVNs = vcenterDB.readVirtualNetworks();
-            SortedMap<String, VmwareVirtualNetworkInfo> oldVNs = vncDB.readVirtualNetworks();
-            sync(oldVNs, vmwareVNs);
-        } else {
-            vmwareVNs = vncDB.readVirtualNetworks();
-        }
+        vmwareVNs = vcenterDB.readVirtualNetworks();
+        SortedMap<String, VmwareVirtualNetworkInfo> oldVNs = vncDB.readVirtualNetworks();
+        sync(oldVNs, vmwareVNs);
         
         vmwareVMs = vcenterDB.readVirtualMachines();
         SortedMap<String, VmwareVirtualMachineInfo> oldVMs = vncDB.readVirtualMachines();
         sync(oldVMs, vmwareVMs);
          
         printInfo();
+        
+        s_logger.info("\nSync complete, waiting for events\n");
     }
-    
+
     private static void printInfo() {
         System.out.println("\nNetworks after sync:");
         for (VmwareVirtualNetworkInfo vnInfo: vmwareVNs.values()) {

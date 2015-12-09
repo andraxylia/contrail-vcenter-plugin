@@ -96,7 +96,7 @@ public class VCenterEventHandler implements Runnable {
 
     private void handleVmCreateEvent() throws Exception {
         
-        VmwareVirtualMachineInfo newVmInfo = new VmwareVirtualMachineInfo(event, vcenterDB);
+        VmwareVirtualMachineInfo newVmInfo = new VmwareVirtualMachineInfo(event, vcenterDB, vncDB);
         
         newVmInfo.create(vncDB);
         
@@ -106,7 +106,7 @@ public class VCenterEventHandler implements Runnable {
     }
 
     private void handleVmUpdateEvent() throws Exception {
-        VmwareVirtualMachineInfo newVmInfo = new VmwareVirtualMachineInfo(event, vcenterDB);
+        VmwareVirtualMachineInfo newVmInfo = new VmwareVirtualMachineInfo(event, vcenterDB, vncDB);
          
        
         VmwareVirtualMachineInfo oldVmInfo = MainDB.getVmById(newVmInfo.getUuid());
@@ -123,7 +123,7 @@ public class VCenterEventHandler implements Runnable {
     }
 
     private void handleVmDeleteEvent() throws Exception {
-        VmwareVirtualMachineInfo vmInfo = new VmwareVirtualMachineInfo(event, vcenterDB);
+        VmwareVirtualMachineInfo vmInfo = new VmwareVirtualMachineInfo(event, vcenterDB, vncDB);
         VCenterNotify.unwatchVm(vmInfo);  
         vmInfo.delete(vncDB);
     }

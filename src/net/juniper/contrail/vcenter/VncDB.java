@@ -1488,7 +1488,12 @@ public class VncDB {
         s_logger.info("Created " + vm);
     }
 
-
+    private VirtualMachine lookupApiVm(VmwareVirtualMachineInfo vmInfo) 
+            throws IOException {
+        return (VirtualMachine) apiConnector.findById(
+            VirtualMachine.class, vmInfo.getUuid());
+    }
+    
     public void deleteVirtualMachine(VmwareVirtualMachineInfo vmInfo)
             throws IOException {
         if (mode != Mode.VCENTER_ONLY) {
@@ -1500,8 +1505,7 @@ public class VncDB {
             throw new IllegalArgumentException("Null arguments");
         }
         if (vmInfo.apiVm == null) {
-            vmInfo.apiVm = (VirtualMachine) apiConnector.findById(
-                    VirtualMachine.class, vmInfo.getUuid());
+            vmInfo.apiVm = lookupApiVm(vmInfo);
             if (vmInfo.apiVm == null) {
                 s_logger.error("Cannot delete VM, it does not exist " + vmInfo);
                 return;
@@ -1524,10 +1528,8 @@ public class VncDB {
         VmwareVirtualNetworkInfo vnInfo = vmiInfo.vnInfo;
         VirtualMachine vm = vmInfo.apiVm;
         if (vm == null) {
-            
-            vm = (VirtualMachine) apiConnector.findById(
-                    VirtualMachine.class, vmInfo.getUuid());
-   
+            vm = vmInfo.apiVm = lookupApiVm(vmInfo);
+           
             if (vm == null) {
                 s_logger.error("Cannot find " + vmInfo);
                 return;
@@ -1544,6 +1546,7 @@ public class VncDB {
                 s_logger.error("Cannot find " + vnInfo);
                 return;
             }
+            vnInfo.apiVn = network;
         }
         
         // create Virtual machine interface
@@ -1645,8 +1648,7 @@ public class VncDB {
         }
     }
 
-    public void createInstanceIp(
-            VmwareVirtualMachineInterfaceInfo vmiInfo)
+    public void createInstanceIp(VmwareVirtualMachineInterfaceInfo vmiInfo)
             throws IOException {
         if (mode != Mode.VCENTER_ONLY) {
             return;
@@ -1654,6 +1656,15 @@ public class VncDB {
         
         VirtualNetwork network = vmiInfo.vnInfo.apiVn;
         VirtualMachine vm = vmiInfo.vmInfo.apiVm;
+        
+        if (vm == null) {
+            vm = vmiInfo.vmInfo.apiVm = lookupApiVm(vmiInfo.vmInfo);
+            
+            if (vm == null) {
+                s_logger.error("Cannot find " + vmiInfo);
+                return;
+            }
+        }
         VirtualMachineInterface vmIntf = vmiInfo.apiVmi;
         String instanceIpName = "ip-" + network.getName() + "-" + vmiInfo.vmInfo.getName() ;
         String instIpUuid = UUID.randomUUID().toString();
@@ -1789,8 +1800,18 @@ public class VncDB {
     public void readVirtualMachineInterfaces(VmwareVirtualMachineInfo vmInfo)
         throws IOException {
         
+        VirtualMachine vm = vmInfo.apiVm;
+        if (vm == null) {
+            vm = vmInfo.apiVm = lookupApiVm(vmInfo);
+           
+            if (vm == null) {
+                s_logger.error("Cannot find " + vmInfo);
+                return;
+            }
+        }
+        
         List<ObjectReference<ApiPropertyBase>> vmInterfaceRefs =
-                vmInfo.apiVm.getVirtualMachineInterfaceBackRefs();
+                vm.getVirtualMachineInterfaceBackRefs();
         
         for (ObjectReference<ApiPropertyBase> vmInterfaceRef :
             Utils.safe(vmInterfaceRefs)) {
@@ -1806,33 +1827,92 @@ public class VncDB {
                 VmwareVirtualNetworkInfo vnInfo = MainDB.getVnById(vnRef.getUuid());
                 VmwareVirtualMachineInterfaceInfo vmiInfo = 
                         new VmwareVirtualMachineInterfaceInfo(vmInfo, vnInfo);
-                vmiInfo.setUuid(vmInterfaceUuid);
+                
                 vmiInfo.apiVmi = vmInterface;
-                List<String> macAddresses = vmInterface.getMacAddresses().getMacAddress();
-                if (macAddresses.size() > 0) {
-                    vmiInfo.setMacAddress(macAddresses.get(0));
-                }
+                vmiInfo.setUuid(vmInterfaceUuid);
                 
-                List<ObjectReference<ApiPropertyBase>> instanceIpRefs = 
-                        vmiInfo.apiVmi.getInstanceIpBackRefs();
+                readMacAddress(vmiInfo);
                 
-                for (ObjectReference<ApiPropertyBase> instanceIpRef : 
-                    Utils.safe(instanceIpRefs)) {
-                    InstanceIp inst = (InstanceIp)
-                            apiConnector.findById(InstanceIp.class,
-                                    instanceIpRef.getUuid());
-                    if (inst != null) {
-                        vmiInfo.setIpAddress(inst.getAddress());
-                        vmiInfo.apiInstanceIp = inst;
-                        //TODO this is in fact a list of IP addresses
-                        // but we only support one
-                        break;
-                    }
-                }
+                readInstanceIp(vmiInfo);
 
                 vmInfo.created(vmiInfo);
             }
         }
+    }
+
+    private void readMacAddress(VmwareVirtualMachineInterfaceInfo vmiInfo) 
+        throws IOException {
+        VirtualMachineInterface apiVmi = vmiInfo.apiVmi;
+        if (apiVmi == null) {
+            apiVmi = (VirtualMachineInterface) apiConnector.findById(
+                    VirtualMachineInterface.class, vmiInfo.getUuid());
+            if (apiVmi == null) {
+                return;
+            }
+            vmiInfo.apiVmi = apiVmi;
+        }
+        List<String> macAddresses = apiVmi.getMacAddresses().getMacAddress();
+        if (macAddresses.size() > 0) {
+            vmiInfo.setMacAddress(macAddresses.get(0));
+        }
+    }
+
+    public void readInstanceIp(VmwareVirtualMachineInterfaceInfo vmiInfo) 
+            throws IOException {
+        VirtualMachineInterface apiVmi = vmiInfo.apiVmi;
+        if (apiVmi == null) {
+            apiVmi = vmiInfo.apiVmi = readApiVmi(vmiInfo);
+        }
+        
+        List<ObjectReference<ApiPropertyBase>> instanceIpRefs = 
+                apiVmi.getInstanceIpBackRefs();
+        
+        for (ObjectReference<ApiPropertyBase> instanceIpRef : 
+            Utils.safe(instanceIpRefs)) {
+            InstanceIp inst = (InstanceIp)
+                    apiConnector.findById(InstanceIp.class,
+                            instanceIpRef.getUuid());
+            if (inst != null) {
+                vmiInfo.setIpAddress(inst.getAddress());
+                vmiInfo.apiInstanceIp = inst;
+                //TODO this is in fact a list of IP addresses
+                // but we only support one
+                break;
+            }
+        }
+    }
+
+    private VirtualMachineInterface readApiVmi(VmwareVirtualMachineInterfaceInfo vmiInfo) 
+            throws IOException {
+        if (vmiInfo == null) {
+            return null;
+        }
+        
+        if (vmiInfo.vmInfo.apiVm == null) {
+            vmiInfo.vmInfo.apiVm = lookupApiVm(vmiInfo.vmInfo);
+            
+            if (vmiInfo.vmInfo.apiVm == null) {
+                return null;
+            }
+        }
+        // find VMI matching vmUuid & vnUuid
+        List<ObjectReference<ApiPropertyBase>> vmInterfaceRefs =
+                vmiInfo.vmInfo.apiVm.getVirtualMachineInterfaceBackRefs();
+        for (ObjectReference<ApiPropertyBase> vmInterfaceRef :
+            Utils.safe(vmInterfaceRefs)) {
+            String vmInterfaceUuid = vmInterfaceRef.getUuid();
+            VirtualMachineInterface vmInterface = (VirtualMachineInterface)
+                    apiConnector.findById(VirtualMachineInterface.class,
+                            vmInterfaceUuid);
+            List<ObjectReference<ApiPropertyBase>> vnRefs =
+                                            vmInterface.getVirtualNetwork();
+            for (ObjectReference<ApiPropertyBase> vnRef : vnRefs) {
+                if (vnRef.getUuid().equals(vmiInfo.vnInfo.getUuid())) {
+                    return vmInterface;
+               }
+            }
+        }
+        return null;
     }
     
     public void clearInstanceIps()
