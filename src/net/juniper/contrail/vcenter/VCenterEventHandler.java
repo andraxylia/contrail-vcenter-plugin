@@ -89,6 +89,7 @@ public class VCenterEventHandler implements Runnable {
             // this triggers a sync
             s_logger.error("Exception in event handling, re-sync needed: "
                     + e.getMessage());
+            e.printStackTrace();
             VCenterMonitorTask.syncNeeded = true;
             return;
         }

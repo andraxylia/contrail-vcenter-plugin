@@ -101,10 +101,13 @@ public class VmwareVirtualMachineInfo extends VCenterObject {
         vmiInfoMap = new ConcurrentSkipListMap<String, VmwareVirtualMachineInterfaceInfo>();
         vcenterDB.readVirtualMachineInterfaces(this);
         
-        for (Map.Entry<String, VmwareVirtualMachineInterfaceInfo> entry: 
-            vmiInfoMap.entrySet()) {
-            VmwareVirtualMachineInterfaceInfo vmiInfo = entry.getValue();
-            vncDB.readInstanceIp(vmiInfo);
+        if (vcenterDB.mode == Mode.VCENTER_AS_COMPUTE) {
+            // ipAddress and UUID must be read from Vnc
+            for (Map.Entry<String, VmwareVirtualMachineInterfaceInfo> entry: 
+                vmiInfoMap.entrySet()) {
+                VmwareVirtualMachineInterfaceInfo vmiInfo = entry.getValue();
+                vncDB.readVirtualMachineInterface(vmiInfo);
+            }
         }
     }
 

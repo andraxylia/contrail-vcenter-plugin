@@ -138,15 +138,6 @@ public class VCenterNotify implements Runnable
             // DV port delete
             "DVPortgroupDestroyedEvent",
 
-            // DVS port events
-            // DVS port create
-            "DvsPortCreatedEvent",
-            // DVS port modify
-            "DvsPortJoinPortgroupEvent",
-            "DvsPortLeavePortgroupEvent",
-            // DVS port deleted
-            "DvsPortDeletedEvent",
-
             // General
             "MigrationEvent",
     };
