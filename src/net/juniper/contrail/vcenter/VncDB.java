@@ -61,7 +61,7 @@ public class VncDB {
     private NetworkIpam vCenterIpam;
     private SecurityGroup vCenterDefSecGrp;
     private IdPermsType vCenterIdPerms;
-    private final Mode mode;
+    Mode mode;
 
     public static final String VNC_ROOT_DOMAIN     = "default-domain";
     public static final String VNC_VCENTER_PROJECT = "vCenter";

@@ -28,7 +28,7 @@ import com.vmware.vim25.VmReconfiguredEvent;
 import com.vmware.vim25.VmRemovedEvent;
 import com.vmware.vim25.VmRenamedEvent;
 
-public class VCenterEventHandler implements Runnable {
+public class VCenterEventHandler {
     Event event;
     VCenterDB vcenterDB;
     VncDB vncDB;
@@ -53,45 +53,34 @@ public class VCenterEventHandler implements Runnable {
                 + "\n----------\n");
     }
 
-    @Override
-    public void run() {
+    public void handle() throws Exception {
         printEvent();
        
-        try {
-            if (event instanceof VmBeingCreatedEvent
-                || event instanceof VmCreatedEvent
-                || event instanceof VmClonedEvent
-                || event instanceof VmCloneEvent
-                || event instanceof VmDeployedEvent) {
-                handleVmCreateEvent();
-            } else if (event instanceof VmReconfiguredEvent
-                || event instanceof  VmRenamedEvent
-                || event instanceof VmMacChangedEvent
-                || event instanceof VmMacAssignedEvent
-                || event instanceof VmMigratedEvent
-                || event instanceof VmPoweredOnEvent
-                || event instanceof VmPoweredOffEvent) {
-                handleVmUpdateEvent();
-            } else if (event instanceof VmRemovedEvent) {
-                handleVmDeleteEvent();
-            } else if (event instanceof DVPortgroupCreatedEvent) {
-                handleNetworkCreateEvent();
-            } else if (event instanceof DVPortgroupReconfiguredEvent
-                    || event instanceof DVPortgroupRenamedEvent) {
-                handleNetworkUpdateEvent();
-            } else if (event instanceof DVPortgroupDestroyedEvent) {
-                handleNetworkDeleteEvent();
-            } else {
-                handleEvent(event);
-            }
-        } catch (Exception e) {
-            // log unable to process event;
-            // this triggers a sync
-            s_logger.error("Exception in event handling, re-sync needed: "
-                    + e.getMessage());
-            e.printStackTrace();
-            VCenterMonitorTask.syncNeeded = true;
-            return;
+        if (event instanceof VmBeingCreatedEvent
+            || event instanceof VmCreatedEvent
+            || event instanceof VmClonedEvent
+            || event instanceof VmCloneEvent
+            || event instanceof VmDeployedEvent) {
+            handleVmCreateEvent();
+        } else if (event instanceof VmReconfiguredEvent
+            || event instanceof  VmRenamedEvent
+            || event instanceof VmMacChangedEvent
+            || event instanceof VmMacAssignedEvent
+            || event instanceof VmMigratedEvent
+            || event instanceof VmPoweredOnEvent
+            || event instanceof VmPoweredOffEvent) {
+            handleVmUpdateEvent();
+        } else if (event instanceof VmRemovedEvent) {
+            handleVmDeleteEvent();
+        } else if (event instanceof DVPortgroupCreatedEvent) {
+            handleNetworkCreateEvent();
+        } else if (event instanceof DVPortgroupReconfiguredEvent
+                || event instanceof DVPortgroupRenamedEvent) {
+            handleNetworkUpdateEvent();
+        } else if (event instanceof DVPortgroupDestroyedEvent) {
+            handleNetworkDeleteEvent();
+        } else {
+            handleEvent(event);
         }
     }
 

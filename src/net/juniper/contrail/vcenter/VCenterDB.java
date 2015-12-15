@@ -70,7 +70,7 @@ public class VCenterDB {
             Logger.getLogger(VCenterDB.class);
     protected static final String contrailVRouterVmNamePrefix = "contrailVM";
     private static final String esxiToVRouterIpMapFile = "/etc/contrail/ESXiToVRouterIp.map";
-    private static final int SERVICE_INSTANCE_READ_TIMEOUT = 30000; //30 sec
+    static final int VCENTER_READ_TIMEOUT = 30000; //30 sec
     protected final String contrailDvSwitchName;
     private final String contrailDataCenterName;
     private final String vcenterUrl;
@@ -79,7 +79,7 @@ public class VCenterDB {
     private final String contrailIpFabricPgName;
     final Mode mode;
     
-    static volatile ServiceInstance serviceInstance;
+    private volatile ServiceInstance serviceInstance;
     private volatile Folder rootFolder;
     private volatile InventoryNavigator inventoryNavigator;
     private volatile IpPoolManager ipPoolManager;
@@ -103,128 +103,79 @@ public class VCenterDB {
         this.contrailIpFabricPgName = ipFabricPgName;
         this.mode                   = mode;
 
-        s_logger.info("VCenterDB(" + contrailDvsName + ", " + ipFabricPgName + ")");
-        // Create ESXi host to vRouterVM Ip address map
-        esxiToVRouterIpMap = new HashMap<String, String>();
+        s_logger.info("VCenterDB(" + contrailDvsName + ", " + ipFabricPgName + ")");        
         vRouterActiveMap = new HashMap<String, Boolean>();
         datacenters = new ConcurrentHashMap<String, Datacenter>();
         dvswitches = new ConcurrentHashMap<String, VmwareDistributedVirtualSwitch>();
+        
+        // Create ESXi host to vRouterVM Ip address map
+        buildEsxiToVRouterIpMap();
     }
 
-    public boolean Initialize() {
-
-        // Build ESXi to VRouterIp Map
-        if (buildEsxiToVRouterIpMap() == false)
-            return false;
-
-        s_logger.info("Trying to Connect to vCenter Server : " + "("
-                                + vcenterUrl + "," + vcenterUsername + ")");
-        // Connect to VCenter
-        if (serviceInstance == null) {
-            try {
-                serviceInstance = new ServiceInstance(new URL(vcenterUrl),
-                                            vcenterUsername, vcenterPassword, true);
-                if (serviceInstance == null) {
-                    s_logger.error("Failed to connect to vCenter Server : " + "("
-                                    + vcenterUrl + "," + vcenterUsername + "," 
-                                    + vcenterPassword + ")");
-                    connectRetry();
-                }
-            } catch (MalformedURLException e) {
-                    return false;
-            } catch (RemoteException e) {
-               s_logger.error("Remote exception while connecting to vcenter" + e);
-                e.printStackTrace();
-                return connectRetry();
-            } catch (Exception e) {
-                s_logger.error("Error while connecting to vcenter" + e);
-                e.printStackTrace();
-                return false;
-            }
-        }
-        s_logger.info("Connected to vCenter Server : " + "("
-                                + vcenterUrl + "," + vcenterUsername + "," 
-                                + vcenterPassword + ")");
-        //Set read timeout on connection to vcenter server 
-        serviceInstance.getServerConnection()
-                       .getVimService()
-                       .getWsc().setReadTimeout(SERVICE_INSTANCE_READ_TIMEOUT);
-        s_logger.info("ServiceInstance read timeout set to " + 
-            serviceInstance.getServerConnection().getVimService().getWsc().getReadTimeout());
-        return true;
-    }
-
-    public boolean Initialize_data() {
-
+    private boolean initData() {
+        rootFolder = null;
+        rootFolder = serviceInstance.getRootFolder();
         if (rootFolder == null) {
-            rootFolder = serviceInstance.getRootFolder();
-            if (rootFolder == null) {
-                s_logger.error("Failed to get rootfolder for vCenter ");
-                return false;
-            }
+            s_logger.error("Failed to get rootfolder for vCenter ");
+            return false;
         }
+        s_logger.info("Got rootfolder for vCenter ");
 
-        s_logger.error("Got rootfolder for vCenter ");
-
+        inventoryNavigator = null;
+        inventoryNavigator = new InventoryNavigator(rootFolder);
         if (inventoryNavigator == null) {
-            inventoryNavigator = new InventoryNavigator(rootFolder);
-            if (inventoryNavigator == null) {
-                s_logger.error("Failed to get InventoryNavigator for vCenter ");
-                return false;
-            }
+            s_logger.error("Failed to get InventoryNavigator for vCenter ");
+            return false;
         }
-        s_logger.error("Got InventoryNavigator for vCenter ");
+        s_logger.info("Got InventoryNavigator for vCenter ");
 
+        ipPoolManager = null;
+        ipPoolManager = serviceInstance.getIpPoolManager();
         if (ipPoolManager == null) {
-            ipPoolManager = serviceInstance.getIpPoolManager();
-            if (ipPoolManager == null) {
-                s_logger.error("Failed to get ipPoolManager for vCenter ");
-                return false;
-            }
+            s_logger.error("Failed to get ipPoolManager for vCenter ");
+            return false;
         }
-        s_logger.error("Got ipPoolManager for vCenter ");
+        s_logger.info("Got ipPoolManager for vCenter ");
 
         // Search contrailDc
-        if (contrailDC == null) {
-            try {
-                contrailDC = (Datacenter) inventoryNavigator.searchManagedEntity(
-                                          "Datacenter", contrailDataCenterName);
-            } catch (InvalidProperty e) {
-                    return false;
-            } catch (RuntimeFault e) {
-                    return false;
-            } catch (RemoteException e) {
-                    return false;
-            }
-            if (contrailDC == null) {
-                s_logger.error("Failed to find " + contrailDataCenterName 
-                               + " DC on vCenter ");
+        contrailDC = null;
+        try {
+            contrailDC = (Datacenter) inventoryNavigator.searchManagedEntity(
+                                      "Datacenter", contrailDataCenterName);
+        } catch (InvalidProperty e) {
                 return false;
-            }
+        } catch (RuntimeFault e) {
+                return false;
+        } catch (RemoteException e) {
+                return false;
+        }
+        if (contrailDC == null) {
+            s_logger.error("Failed to find " + contrailDataCenterName 
+                           + " DC on vCenter ");
+            return false;
         }
         s_logger.info("Found " + contrailDataCenterName + " DC on vCenter ");
         datacenters.put(contrailDataCenterName, contrailDC);
 
         // Search contrailDvSwitch
-        if (contrailDVS == null) {
-            try {
-                contrailDVS = (VmwareDistributedVirtualSwitch)
-                                inventoryNavigator.searchManagedEntity(
-                                        "VmwareDistributedVirtualSwitch",
-                                        contrailDvSwitchName);
-            } catch (InvalidProperty e) {
-                    return false;
-            } catch (RuntimeFault e) {
-                    return false;
-            } catch (RemoteException e) {
-                    return false;
-            }
-
-            if (contrailDVS == null) {
-                s_logger.error("Failed to find " + contrailDvSwitchName + 
-                               " DVSwitch on vCenter");
+        contrailDVS = null;
+        try {
+            contrailDVS = (VmwareDistributedVirtualSwitch)
+                            inventoryNavigator.searchManagedEntity(
+                                    "VmwareDistributedVirtualSwitch",
+                                    contrailDvSwitchName);
+        } catch (InvalidProperty e) {
                 return false;
-            }
+        } catch (RuntimeFault e) {
+                return false;
+        } catch (RemoteException e) {
+                return false;
+        }
+
+        if (contrailDVS == null) {
+            s_logger.error("Failed to find " + contrailDvSwitchName + 
+                           " DVSwitch on vCenter");
+            return false;
         }
         s_logger.info("Found " + contrailDvSwitchName + " DVSwitch on vCenter ");
         dvswitches.put(contrailDvSwitchName, contrailDVS);
@@ -233,9 +184,8 @@ public class VCenterDB {
         return true;
     }
 
-    public boolean connectRetry() {
-        Cleanup();
-        while(retryServiceInstance() == false) {
+    public boolean connect() {        
+        while(!createServiceInstance()) {
             try{
                 Thread.sleep(5000);
             } catch (InterruptedException e) {
@@ -244,54 +194,55 @@ public class VCenterDB {
             }
 
         }
-        s_logger.info("Re-Connect successful!");
-        Initialize_data();
+
+        while(!initData() ) {
+            try{
+                Thread.sleep(5000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+                return false;
+            }
+
+        }
         return true;
     }
 
-    public boolean retryServiceInstance() {
+    private boolean createServiceInstance() {
         try {
-                s_logger.info("Trying to reconnect to vcenter!!");
-                serviceInstance = new ServiceInstance(new URL(vcenterUrl),
-                                            vcenterUsername, vcenterPassword, true);
-                if (serviceInstance == null) {
-                    s_logger.error("Failed to connect to vCenter Server : " + "("
-                                    + vcenterUrl + "," + vcenterUsername + ","
-                                    + vcenterPassword + ")" + "Retrying after 5 secs");
-                    return false;
-                }
-                //Set read timeout on connection to vcenter server
-                serviceInstance.getServerConnection()
-                       .getVimService()
-                       .getWsc().setReadTimeout(SERVICE_INSTANCE_READ_TIMEOUT);
-                s_logger.error("ServiceInstance read timeout: " + 
-                    serviceInstance.getServerConnection().getVimService().getWsc().getReadTimeout());
-                return true;
+            serviceInstance = null;
+            s_logger.info("Trying to Connect to vCenter Server : " + "("
+                    + vcenterUrl + "," + vcenterUsername + ")");
+            serviceInstance = new ServiceInstance(new URL(vcenterUrl),
+                                        vcenterUsername, vcenterPassword, true);
+            if (serviceInstance == null) {
+                s_logger.error("Failed to connect to vCenter Server : " + "("
+                                + vcenterUrl + "," + vcenterUsername + ","
+                                + vcenterPassword + ")" + "Retrying after 5 secs");
+                return false;
+            }
+            s_logger.info("Connected to vCenter Server : " + "("
+                    + vcenterUrl + "," + vcenterUsername + "," 
+                    + vcenterPassword + ")");
+            return true;
         } catch (MalformedURLException e) {
-                s_logger.info("Re-Connect unsuccessful!");
+                s_logger.info("Re-Connect unsuccessful: " + e.getMessage());
                 return false;
         } catch (RemoteException e) {
-                s_logger.info("Re-Connect unsuccessful!");
+                s_logger.info("Re-Connect unsuccessful: " + e.getMessage());
                 return false;
         } catch (Exception e) {
-                s_logger.error("Error while connecting to vcenter" + e);
+                s_logger.error("Error while connecting to vcenter: " + e.getMessage());
                 e.printStackTrace();
                 return false;
         }
     }
 
-    public void Cleanup() {
-        serviceInstance = null;
-        rootFolder = null;
-        inventoryNavigator = null;
-        ipPoolManager = null;
-        contrailDC = null;
-        contrailDVS = null;
-        VCenterNotify.stopUpdates();
+    public ServiceInstance getServiceInstance() {
+        return serviceInstance;
     }
-
-
-    public boolean buildEsxiToVRouterIpMap() {
+    
+    private boolean buildEsxiToVRouterIpMap() {
+        esxiToVRouterIpMap = new HashMap<String, String>();
         try {
             File file = new File("/etc/contrail/ESXiToVRouterIp.map");
             Scanner input = new Scanner(file);
@@ -309,6 +260,19 @@ public class VCenterDB {
         return true;
     }
 
+    public Map<String, String> getEsxiToVRouterIpMap() {
+        return esxiToVRouterIpMap;
+    }
+
+    public void setReadTimeout(int milliSecs) {
+       //Set read timeout on connection to vcenter server 
+       serviceInstance.getServerConnection()
+                      .getVimService()
+                      .getWsc().setReadTimeout(milliSecs);
+       s_logger.info("ServiceInstance read timeout set to " + 
+           serviceInstance.getServerConnection().getVimService().getWsc().getReadTimeout());
+    }
+    
     public void setPrevVmwareVNInfos(
                     SortedMap<String, VmwareVirtualNetworkInfo> _prevVmwareVNInfos) {
         prevVmwareVNInfos = _prevVmwareVNInfos;
@@ -318,12 +282,8 @@ public class VCenterDB {
         return prevVmwareVNInfos;
     }
 
-    public ServiceInstance getServiceInstance() {
-      return serviceInstance;
-    }
-
-    public void setServiceInstance(ServiceInstance _serviceInstance) {
-      serviceInstance = _serviceInstance;
+    public boolean isConnected() {
+      return (serviceInstance != null);
     }
 
     public IpPoolManager getIpPoolManager() {
@@ -1741,5 +1701,15 @@ public class VCenterDB {
             }
             vmInfo.created(vmiInfo);
         }
+    }
+    
+    public boolean isAlive()  {
+        Folder folder = serviceInstance.getRootFolder();
+        if (folder == null) {
+            String msg = "Failed aliveness check for vCenter " + vcenterUrl;
+            s_logger.error(msg);
+            return false;
+        }
+        return true;
     }
 }

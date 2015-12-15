@@ -62,15 +62,9 @@ public class VCenterMonitor {
     private static String _vcenterPassword   = "Contrail123!";
     private static String _vcenterDcName     = "Datacenter";
     private static String _vcenterDvsName    = "dvSwitch";
-    private static String _vcenterIpFabricPg = "contrail-fab-pg";
-    
-    private static volatile VCenterDB _vcenterDB;
-    public static VCenterDB getVcenterDB() {
-        return _vcenterDB;
-    }
-    
+    private static String _vcenterIpFabricPg = "contrail-fab-pg";    
     private static volatile VncDB _vncDB;
-    
+
     public static VncDB getVncDB() {
         return _vncDB;
     }
@@ -181,8 +175,6 @@ public class VCenterMonitor {
         zk_ms.waitForLeadership();
         s_logger.info("Acquired zookeeper Mastership .. ");
 
-        _vcenterDB = new VCenterDB(_vcenterURL, _vcenterUsername, _vcenterPassword,
-                _vcenterDcName, _vcenterDvsName, _vcenterIpFabricPg, mode);
         
         switch (mode) {
         case VCENTER_ONLY:
@@ -196,31 +188,23 @@ public class VCenterMonitor {
         default:
             _vncDB = new VncDB(_apiServerAddress, _apiServerPort, mode);
         }
-
+        
         // Launch the periodic VCenterMonitorTask
-        VCenterMonitorTask _monitorTask = new VCenterMonitorTask(_vcenterDB, _vncDB, mode);
-            
+        VCenterMonitorTask _monitorTask = new VCenterMonitorTask(_eventMonitor, _vncDB,
+                 _vcenterURL, _vcenterUsername, _vcenterPassword,
+                               _vcenterDcName, _vcenterDvsName, _vcenterIpFabricPg);
+        
         scheduledTaskExecutor.scheduleWithFixedDelay(_monitorTask, 0, 8, //8 second periodic
                 TimeUnit.SECONDS);
         Runtime.getRuntime().addShutdownHook(
                 new ExecutorServiceShutdownThread(scheduledTaskExecutor));
-
-        //Start event notify thread if VNC & VCenter one time resync is complete.
-        s_logger.info("Waiting for one time resync to complete.. ");
-        while (_monitorTask.getAddPortSyncAtPluginStart() == true) {
-            // wait for sync to complete.
-            try {
-                Thread.sleep(2);
-            } catch (java.lang.InterruptedException e) {
-              System.out.println(e);
-            }
-        }
-
-        s_logger.info("Starting event monitor Task.. ");
-        _eventMonitor = new VCenterNotify(null, _vcenterDB, _vncDB, _vcenterURL,
-                                          _vcenterUsername, _vcenterPassword,
-                                          _vcenterDcName);
+        
+        s_logger.info("Starting periodic monitor Task.. ");
+        _eventMonitor = new VCenterNotify(_vncDB, _vcenterURL, _vcenterUsername, _vcenterPassword,
+                            _vcenterDcName, _vcenterDvsName, _vcenterIpFabricPg);
         _eventMonitor.start();
+        
+        s_logger.info("Periodic monitor Task started.");
     }
 
     private static void launchWatchDogs() {

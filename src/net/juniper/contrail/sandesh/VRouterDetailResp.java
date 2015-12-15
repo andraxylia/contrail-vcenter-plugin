@@ -4,7 +4,9 @@ import java.util.Map;
 import java.util.SortedMap;
 import net.juniper.contrail.contrail_vrouter_api.ContrailVRouterApi;
 import net.juniper.contrail.vcenter.MainDB;
+import net.juniper.contrail.vcenter.VCenterDB;
 import net.juniper.contrail.vcenter.VCenterMonitor;
+import net.juniper.contrail.vcenter.VCenterNotify;
 import net.juniper.contrail.vcenter.VmwareVirtualMachineInfo;
 import net.juniper.contrail.vcenter.VmwareVirtualMachineInterfaceInfo;
 import net.juniper.contrail.vcenter.VmwareVirtualNetworkInfo;
@@ -25,7 +27,7 @@ public class VRouterDetailResp {
         ContrailVRouterApi api = vRouters.get(req.ipAddr);
         vrouter.setState(api!= null);
         
-        Map<String, String> host2VrouterMap = VCenterMonitor.getVcenterDB().esxiToVRouterIpMap;
+        Map<String, String> host2VrouterMap = VCenterNotify.getVcenterDB().getEsxiToVRouterIpMap();
         
         for (Map.Entry<String, String> map_entry : host2VrouterMap.entrySet()) {
             if (map_entry.getValue().equals(req.ipAddr)) {

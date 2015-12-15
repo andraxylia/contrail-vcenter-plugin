@@ -50,7 +50,7 @@ class VCenterAsComputeMonitorTask implements Runnable {
         if (vncDB.Initialize() == true) {
             VncDBInitCompelete = true;
         }
-        if (vcenterDB.Initialize() == true && vcenterDB.Initialize_data() == true) {
+        if (vcenterDB.connect()) {
             VcenterDBInitCompelete = true;
         }
     }
@@ -464,7 +464,7 @@ class VCenterAsComputeMonitorTask implements Runnable {
             }
 
             if (VcenterDBInitCompelete == false) {
-                if (vcenterDB.Initialize() == true && vcenterDB.Initialize_data() == true) {
+                if (vcenterDB.connect() == true) {
                     VcenterDBInitCompelete = true;
                 }
             }
@@ -489,10 +489,10 @@ class VCenterAsComputeMonitorTask implements Runnable {
                      //Remote Exception. Some issue with connection to vcenter-server
                      // Exception on accessing remote objects.
                      // Try to reinitialize the VCenter connection.
-                     //For some reasom RemoteException not thrown
+                     //For some reason RemoteException not thrown
                      s_logger.error("Problem with connection to vCenter-Server");
                      s_logger.error("Restart connection and reSync");
-                     vcenterDB.connectRetry();
+                     vcenterDB.connect();
                      this.VCenterNotifyForceRefresh = true;
                 }
                 return;
@@ -529,7 +529,7 @@ class VCenterAsComputeMonitorTask implements Runnable {
                 //For some reasom RemoteException not thrown
                 s_logger.error("Problem with connection to vCenter-Server");
                 s_logger.error("Restart connection and reSync");
-                vcenterDB.connectRetry();
+                vcenterDB.connect();
             }
         }
 
