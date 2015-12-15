@@ -78,7 +78,7 @@ public class VCenterNotify implements Runnable
     private static final Logger s_logger =
             Logger.getLogger(VCenterNotify.class);
     static VCenterMonitorTask monitorTask = null;
-    public static volatile VCenterDB vcenterDB;
+    static volatile VCenterDB vcenterDB;
     volatile VncDB vncDB;
     private final String contrailDataCenterName;
     private final String vcenterUrl;

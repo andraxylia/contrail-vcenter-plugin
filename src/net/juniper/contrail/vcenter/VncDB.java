@@ -1253,7 +1253,7 @@ public class VncDB {
         networks = (List<VirtualNetwork>) 
                 apiConnector.list(VirtualNetwork.class, null);
         } catch (Exception ex) {
-            s_logger.error("Exception in api.list(VirtualNetorks): " + ex);
+            s_logger.error("Exception in api.list(VirtualNetworks): " + ex);
             ex.printStackTrace();
         }
         if (networks == null || networks.size() == 0) {
@@ -1741,7 +1741,7 @@ public class VncDB {
             apiObjs = (List<VirtualNetwork>) 
                     apiConnector.list(VirtualNetwork.class, null);
         } catch (Exception ex) {
-            s_logger.error("Exception in api.list(VirtualNetorks): " + ex);
+            s_logger.error("Exception in api.list(VirtualNetworks): " + ex);
             ex.printStackTrace();
             return map;
         }
