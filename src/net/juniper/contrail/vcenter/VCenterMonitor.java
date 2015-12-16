@@ -63,12 +63,7 @@ public class VCenterMonitor {
     private static String _vcenterDcName     = "Datacenter";
     private static String _vcenterDvsName    = "dvSwitch";
     private static String _vcenterIpFabricPg = "contrail-fab-pg";    
-    private static volatile VncDB _vncDB;
-
-    public static VncDB getVncDB() {
-        return _vncDB;
-    }
-    
+   
     static VCenterNotify _eventMonitor;    
     private static String _apiServerAddress  = "10.84.13.23";
     private static int _apiServerPort        = 8082;
@@ -174,23 +169,9 @@ public class VCenterMonitor {
         s_logger.info("Waiting for zookeeper Mastership .. ");
         zk_ms.waitForLeadership();
         s_logger.info("Acquired zookeeper Mastership .. ");
-
-        
-        switch (mode) {
-        case VCENTER_ONLY:
-            _vncDB = new VncDB(_apiServerAddress, _apiServerPort, mode);
-            break;
-        case VCENTER_AS_COMPUTE:
-            _vncDB = new VncDB(_apiServerAddress, _apiServerPort, _username, _password,
-                    _tenant,
-                    _authtype, _authurl, mode);
-            break;
-        default:
-            _vncDB = new VncDB(_apiServerAddress, _apiServerPort, mode);
-        }
         
         // Launch the periodic VCenterMonitorTask
-        VCenterMonitorTask _monitorTask = new VCenterMonitorTask(_eventMonitor, _vncDB,
+        VCenterMonitorTask _monitorTask = new VCenterMonitorTask(_eventMonitor,
                  _vcenterURL, _vcenterUsername, _vcenterPassword,
                                _vcenterDcName, _vcenterDvsName, _vcenterIpFabricPg);
         
@@ -200,8 +181,11 @@ public class VCenterMonitor {
                 new ExecutorServiceShutdownThread(scheduledTaskExecutor));
         
         s_logger.info("Starting periodic monitor Task.. ");
-        _eventMonitor = new VCenterNotify(_vncDB, _vcenterURL, _vcenterUsername, _vcenterPassword,
-                            _vcenterDcName, _vcenterDvsName, _vcenterIpFabricPg);
+        _eventMonitor = new VCenterNotify(_vcenterURL, _vcenterUsername, _vcenterPassword,
+                            _vcenterDcName, _vcenterDvsName, _vcenterIpFabricPg,
+                            _apiServerAddress, _apiServerPort, _username, _password,
+                            _tenant,
+                            _authtype, _authurl, mode);
         _eventMonitor.start();
         
         s_logger.info("Periodic monitor Task started.");

@@ -53,8 +53,6 @@ public class VncDB {
     protected final String tenant;
     protected final String authtype;
     protected final String authurl;
-    protected HashMap<String, ContrailVRouterApi> vrouterApiMap;
-    
     protected volatile ApiConnector apiConnector;
     private boolean alive;
     private Project vCenterProject;
@@ -76,9 +74,6 @@ public class VncDB {
         this.apiServerPort = apiServerPort;
         this.mode = mode;
 
-        // Create vrouter api map
-        vrouterApiMap = new HashMap<String, ContrailVRouterApi>();
-
         if (mode == Mode.VCENTER_ONLY) {
             // Create global id-perms object.
             vCenterIdPerms = new IdPermsType();
@@ -99,9 +94,6 @@ public class VncDB {
         this.apiServerAddress = apiServerAddress;
         this.apiServerPort = apiServerPort;
         this.mode = mode;
-
-        // Create vrouter api map
-        vrouterApiMap = new HashMap<String, ContrailVRouterApi>();
 
         if (mode == Mode.VCENTER_ONLY) {
             // Create global id-perms object.
@@ -131,10 +123,6 @@ public class VncDB {
     
     public int getApiServerPort() {
         return apiServerPort;
-    }
-    
-    public HashMap<String, ContrailVRouterApi>  getVRouterApiMap() {
-        return vrouterApiMap;
     }
 
     public IdPermsType getVCenterIdPerms() {
@@ -462,33 +450,6 @@ public class VncDB {
             return true;
         }
         return false;
-    }
-    
-    // KeepAlive with all active vRouter Agent Connections.
-    public void vrouterAgentPeriodicConnectionCheck(Map<String, Boolean> vRouterActiveMap) {
-        for (Map.Entry<String, Boolean> entry: vRouterActiveMap.entrySet()) {
-            if (entry.getValue() == Boolean.FALSE) {
-                // host is in maintenance mode
-                continue;
-            }
-
-            String vrouterIpAddress = entry.getKey();
-            ContrailVRouterApi vrouterApi = vrouterApiMap.get(vrouterIpAddress);
-            if (vrouterApi == null) {
-                try {
-                    vrouterApi = new ContrailVRouterApi(
-                          InetAddress.getByName(vrouterIpAddress), 
-                          vrouterApiPort, false, 1000);
-                } catch (UnknownHostException e) { 
-                }
-                if (vrouterApi == null) {
-                    continue;
-                }
-                vrouterApiMap.put(vrouterIpAddress, vrouterApi);
-            }
-            // run Keep Alive with vRouter Agent.
-            vrouterApi.PeriodicConnectionCheck();
-        }
     }
 
     public void createVirtualNetwork(VmwareVirtualNetworkInfo vnInfo)

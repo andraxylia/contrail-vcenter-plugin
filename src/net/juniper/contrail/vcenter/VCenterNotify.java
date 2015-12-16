@@ -79,13 +79,7 @@ public class VCenterNotify implements Runnable
             Logger.getLogger(VCenterNotify.class);
     static VCenterMonitorTask monitorTask = null;
     static volatile VCenterDB vcenterDB;
-    volatile VncDB vncDB;
-    private final String contrailDataCenterName;
-    private final String vcenterUrl;
-    private final String vcenterUsername;
-    private final String vcenterPassword;
-    private Folder rootFolder;
-    private InventoryNavigator inventoryNavigator;
+    static volatile VncDB vncDB;
     private static ManagedObjectWatcher mom = null;
     private boolean AddPortSyncAtPluginStart = true;
     private boolean VncDBInitComplete = false;
@@ -145,23 +139,30 @@ public class VCenterNotify implements Runnable
             "MigrationEvent",
     };
 
-    public VCenterNotify(VncDB vncDB,
+    public VCenterNotify(
             String vcenterUrl, String vcenterUsername,
             String vcenterPassword, String dcName,
-            String dvsName, String ipFabricPgName)
-    {
-        this.vncDB                  = vncDB;
-        this.vcenterUrl             = vcenterUrl;
-        this.vcenterUsername        = vcenterUsername;
-        this.vcenterPassword        = vcenterPassword;
-        this.contrailDataCenterName = dcName;
-        
+            String dvsName, String ipFabricPgName,
+            String _apiServerAddress, int _apiServerPort, 
+            String _username, String _password,
+            String _tenant,
+            String _authtype, String _authurl, Mode mode)
+    {        
         vcenterDB = new VCenterDB(vcenterUrl, vcenterUsername, vcenterPassword,
-                dcName, dvsName, ipFabricPgName, VCenterMonitor.mode);
-        connect2vcenter();
+                dcName, dvsName, ipFabricPgName, mode);
         
-        mom = new ManagedObjectWatcher(vcenterDB.getServiceInstance().getPropertyCollector());
-        updateFilter();
+        switch (mode) {
+        case VCENTER_ONLY:
+            vncDB = new VncDB(_apiServerAddress, _apiServerPort, mode);
+            break;
+        case VCENTER_AS_COMPUTE:
+            vncDB = new VncDB(_apiServerAddress, _apiServerPort, _username, _password,
+                    _tenant,
+                    _authtype, _authurl, mode);
+            break;
+        default:
+            vncDB = new VncDB(_apiServerAddress, _apiServerPort, mode);
+        }
     }
 
     public static VCenterDB getVcenterDB() {
@@ -385,7 +386,11 @@ public class VCenterNotify implements Runnable
                     VCenterEventHandler handler = new VCenterEventHandler(
                             (Event) value, vcenterDB, vncDB);
                     // for now we handle the events in the same thread
-                    handler.handle();
+                    if (vncDB.isVncApiServerAlive()) {
+                        handler.handle();
+                    } else {
+                        syncNeeded = true;
+                    }
                 } else {
                     s_logger.info("\n Received unhandled property of type " + value.getClass().getName());
                 }
@@ -393,7 +398,7 @@ public class VCenterNotify implements Runnable
 
             }
         }
-     
+
         if (toolsRunningStatus != null || nics != null) {
             ManagedObjectReference mor = oUpdate.getObj();
             if (watchedVMs.containsKey(mor.getVal())) {
@@ -460,6 +465,9 @@ public class VCenterNotify implements Runnable
 
                 propFilter = propColl.createFilter(eventFilterSpec, true);
 
+                mom = new ManagedObjectWatcher(vcenterDB.getServiceInstance().getPropertyCollector());
+                updateFilter();
+                
                 VcenterDBInitComplete = true;
             }
         } catch (Exception e) {
@@ -594,6 +602,10 @@ public class VCenterNotify implements Runnable
 
     public static void stopUpdates() {
         propColl.stopUpdates();
+    }
+    
+    public static VncDB getVncDB() {
+        return vncDB;
     }
 }
 

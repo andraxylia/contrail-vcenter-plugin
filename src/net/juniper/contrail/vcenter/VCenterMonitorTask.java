@@ -29,22 +29,18 @@ import net.juniper.contrail.watchdog.TaskWatchDog;
 class VCenterMonitorTask implements Runnable {
     private static Logger s_logger = Logger.getLogger(VCenterMonitorTask.class);
     private static VCenterDB vcenterDB;
-    private static VncDB vncDB;
     VCenterNotify eventTask;
     private boolean VcenterDBInitComplete = false;
     
-    public VCenterMonitorTask(VCenterNotify eventTask, VncDB _vncDB,
+    public VCenterMonitorTask(VCenterNotify eventTask,
             String vcenterUrl, String vcenterUsername,
             String vcenterPassword, String dcName,
             String dvsName, String ipFabricPgName) {
-        this.eventTask = eventTask;
-        
-        vncDB = _vncDB;
-        
+        this.eventTask = eventTask;        
         vcenterDB = new VCenterDB(vcenterUrl, vcenterUsername, vcenterPassword,
                 dcName, dvsName, ipFabricPgName, VCenterMonitor.mode);
     }
-    
+
     private void connect2vcenter() {       
         TaskWatchDog.startMonitoring(this, "Init VCenter", 
                 300000, TimeUnit.MILLISECONDS);
@@ -96,7 +92,7 @@ class VCenterMonitorTask implements Runnable {
         // run KeepAlive with vRouter Agent.
 
         try {
-            vncDB.vrouterAgentPeriodicConnectionCheck(vcenterDB.vRouterActiveMap);
+            VRouterNotifier.vrouterAgentPeriodicConnectionCheck();
         } catch (Exception e) {
             String stackTrace = Throwables.getStackTraceAsString(e);
             s_logger.error("Error while vrouterAgentPeriodicConnectionCheck: " + e); 

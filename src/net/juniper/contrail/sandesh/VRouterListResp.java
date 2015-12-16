@@ -5,6 +5,7 @@ import net.juniper.contrail.contrail_vrouter_api.ContrailVRouterApi;
 import net.juniper.contrail.vcenter.VCenterDB;
 import net.juniper.contrail.vcenter.VCenterMonitor;
 import net.juniper.contrail.vcenter.VCenterNotify;
+import net.juniper.contrail.vcenter.VRouterNotifier;
 
 public class VRouterListResp {    
     private SandeshObjectList<VRouterInfo> vrouterInfoList;
@@ -15,7 +16,7 @@ public class VRouterListResp {
                                                     new ComparatorVRouterInfo());
                 
         Map<String, String> host2VrouterMap = VCenterNotify.getVcenterDB().getEsxiToVRouterIpMap();
-        Map<String, ContrailVRouterApi> vRouters = VCenterMonitor.getVncDB().getVRouterApiMap();
+        Map<String, ContrailVRouterApi> vRouters = VRouterNotifier.getVrouterApiMap();
 
         for (Map.Entry<String, ContrailVRouterApi> entry: vRouters.entrySet()) {
             boolean state_up = (entry.getValue()!= null);

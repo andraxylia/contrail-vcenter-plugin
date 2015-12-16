@@ -7,6 +7,7 @@ import net.juniper.contrail.vcenter.MainDB;
 import net.juniper.contrail.vcenter.VCenterDB;
 import net.juniper.contrail.vcenter.VCenterMonitor;
 import net.juniper.contrail.vcenter.VCenterNotify;
+import net.juniper.contrail.vcenter.VRouterNotifier;
 import net.juniper.contrail.vcenter.VmwareVirtualMachineInfo;
 import net.juniper.contrail.vcenter.VmwareVirtualMachineInterfaceInfo;
 import net.juniper.contrail.vcenter.VmwareVirtualNetworkInfo;
@@ -18,7 +19,7 @@ public class VRouterDetailResp {
         vrouter = new VRouterInfo();
         
         //populate here the info
-        Map<String, ContrailVRouterApi> vRouters = VCenterMonitor.getVncDB().getVRouterApiMap();
+        Map<String, ContrailVRouterApi> vRouters = VRouterNotifier.getVrouterApiMap();
         
         if (!vRouters.containsKey(req.ipAddr)) {
             return;

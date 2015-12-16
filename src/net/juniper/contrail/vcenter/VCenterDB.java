@@ -90,7 +90,7 @@ public class VCenterDB {
     private volatile ConcurrentMap<String, VmwareDistributedVirtualSwitch> dvswitches;
 
     public volatile Map<String, String> esxiToVRouterIpMap;
-    public volatile Map<String, Boolean> vRouterActiveMap;
+    public static volatile Map<String, Boolean> vRouterActiveMap;
 
     public VCenterDB(String vcenterUrl, String vcenterUsername,
                      String vcenterPassword, String contrailDcName,

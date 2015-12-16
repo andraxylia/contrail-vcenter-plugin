@@ -4,6 +4,7 @@ import java.util.Map;
 import net.juniper.contrail.contrail_vrouter_api.ContrailVRouterApi;
 import net.juniper.contrail.vcenter.VCenterMonitor;
 import net.juniper.contrail.vcenter.VCenterNotify;
+import net.juniper.contrail.vcenter.VRouterNotifier;
 import net.juniper.contrail.vcenter.VncDB;
 
 public class VCenterPluginResp {    
@@ -33,10 +34,7 @@ public class VCenterPluginResp {
         int up = 0;
         int down = 0;
 
-        if (VCenterMonitor.getVncDB() == null) {
-            return;
-        }
-        Map<String, ContrailVRouterApi> apiMap = VCenterMonitor.getVncDB().getVRouterApiMap();
+        Map<String, ContrailVRouterApi> apiMap = VRouterNotifier.getVrouterApiMap();
 
         if (apiMap == null) {
             return;
@@ -57,7 +55,7 @@ public class VCenterPluginResp {
     
     private void populateApiServerInfo() {
         ApiServerInfo apiServerInfo = vCenterPluginInfo.getApiServerInfo();
-        VncDB vncDB = VCenterMonitor.getVncDB();
+        VncDB vncDB = VCenterNotify.getVncDB();
         if (vncDB != null) {
             apiServerInfo.setIpAddr(vncDB.getApiServerAddress());
             apiServerInfo.setPort(vncDB.getApiServerPort());

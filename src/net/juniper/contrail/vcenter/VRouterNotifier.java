@@ -9,6 +9,7 @@ package net.juniper.contrail.vcenter;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 import org.apache.log4j.Logger;
 import net.juniper.contrail.contrail_vrouter_api.ContrailVRouterApi;
@@ -21,22 +22,31 @@ public class VRouterNotifier {
     private final static Logger s_logger =
             Logger.getLogger(VRouterNotifier.class);
 
+    public static Map<String, ContrailVRouterApi> getVrouterApiMap() {
+        return vrouterApiMap;
+    }
+    
     public static void created(VmwareVirtualMachineInterfaceInfo vmiInfo) {
-
-        if (vmiInfo == null || vmiInfo.apiVmi == null
-                || vmiInfo.vmInfo == null || vmiInfo.vmInfo.apiVm == null 
-                || vmiInfo.vnInfo == null || vmiInfo.vnInfo.apiVn == null) {
-                
-            throw new IllegalArgumentException("Null argument");
+        if (vmiInfo == null) {       
+            s_logger.error("Null vmiInfo argument, cannot perform addPort");
+            return;
         }
 
+        if (vmiInfo.vmInfo == null)  {               
+            s_logger.error("Null vmInfo, cannot perform addPort");
+            return;
+        }
+        if (vmiInfo.vnInfo == null)  {               
+            s_logger.error("Null vnInfo, cannot perform addPort");
+            return;
+        }
         String vrouterIpAddress = vmiInfo.getVmInfo().getVrouterIpAddress();
         String ipAddress = vmiInfo.getIpAddress();
         VmwareVirtualMachineInfo vmInfo = vmiInfo.vmInfo;
         VmwareVirtualNetworkInfo vnInfo = vmiInfo.vnInfo;
         
         if (vrouterIpAddress == null) {
-            s_logger.warn(vmiInfo +
+            s_logger.error(vmiInfo +
                 " addPort notification NOT sent as vRouterIp Address not known");
             return;
         }
@@ -80,26 +90,31 @@ public class VRouterNotifier {
     }
 
     public static void deleted(VmwareVirtualMachineInterfaceInfo vmiInfo) {
-        if (vmiInfo == null || vmiInfo.apiVmi == null
-                || vmiInfo.vmInfo == null || vmiInfo.vmInfo.apiVm == null 
-                || vmiInfo.vnInfo == null || vmiInfo.vnInfo.apiVn == null) {
-                
-            s_logger.error("Null argument, cannot perform deletePort");
+        if (vmiInfo == null) {       
+            s_logger.error("Null vmiInfo argument, cannot perform deletePort");
             return;
         }
 
+        if (vmiInfo.vmInfo == null)  {               
+            s_logger.error("Null vmInfo, cannot perform deletePort");
+            return;
+        }
+        if (vmiInfo.vnInfo == null)  {               
+            s_logger.error("Null vnInfo, cannot perform deletePort");
+            return;
+        }
         String vrouterIpAddress = vmiInfo.getVmInfo().getVrouterIpAddress();
         String ipAddress = vmiInfo.getIpAddress();
         VmwareVirtualMachineInfo vmInfo = vmiInfo.vmInfo;
         VmwareVirtualNetworkInfo vnInfo = vmiInfo.vnInfo;
         
         if (vrouterIpAddress == null) {
-            s_logger.warn(vmiInfo +
+            s_logger.error(vmiInfo +
                 " deletePort notification NOT sent as vRouterIp Address not known");
             return;
         }
         if (ipAddress == null) {
-            s_logger.warn(vmiInfo +
+            s_logger.error(vmiInfo +
                 " deletePort notification NOT sent as IPAM external and IP Address not set or vmware Tools not installed");
             return;
         }
@@ -125,6 +140,36 @@ public class VRouterNotifier {
             // log failure but don't worry. Periodic KeepAlive task will
             // attempt to connect to vRouter Agent and replay DeletePorts.
             s_logger.error("VRouterAPI Delete Port failed for " + vmiInfo);
+        }
+    }
+    
+    // KeepAlive with all active vRouter Agent Connections.
+    public static void vrouterAgentPeriodicConnectionCheck() {
+        
+        Map<String, Boolean> vRouterActiveMap = VCenterDB.vRouterActiveMap;
+        
+        for (Map.Entry<String, Boolean> entry: vRouterActiveMap.entrySet()) {
+            if (entry.getValue() == Boolean.FALSE) {
+                // host is in maintenance mode
+                continue;
+            }
+
+            String vrouterIpAddress = entry.getKey();
+            ContrailVRouterApi vrouterApi = vrouterApiMap.get(vrouterIpAddress);
+            if (vrouterApi == null) {
+                try {
+                    vrouterApi = new ContrailVRouterApi(
+                          InetAddress.getByName(vrouterIpAddress), 
+                          vrouterApiPort, false, 1000);
+                } catch (UnknownHostException e) { 
+                }
+                if (vrouterApi == null) {
+                    continue;
+                }
+                vrouterApiMap.put(vrouterIpAddress, vrouterApi);
+            }
+            // run Keep Alive with vRouter Agent.
+            vrouterApi.PeriodicConnectionCheck();
         }
     }
 }
