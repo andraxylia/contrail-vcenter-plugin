@@ -309,7 +309,7 @@ public class VCenterNotify implements Runnable
         
         PropertyChange[] changes = oUpdate.getChangeSet();
         if (changes == null) {
-            s_logger.error("handleChanges received null change array from vCenter");
+            s_logger.info("handleChanges received null change array from vCenter");
             return;
         }
 
@@ -318,12 +318,12 @@ public class VCenterNotify implements Runnable
         for (int pci = 0; pci < changes.length; ++pci)
         {
             if (changes[pci] == null) {
-                s_logger.error("handleChanges received null change value from vCenter");
+                s_logger.info("handleChanges received null change value from vCenter");
                 continue;
             }
             Object value = changes[pci].getVal();
             if (value == null) {
-                s_logger.error("handleChanges received null change value from vCenter");
+                s_logger.info("handleChanges received null change value from vCenter");
                 continue;
             }
             
@@ -333,14 +333,14 @@ public class VCenterNotify implements Runnable
                     ArrayOfEvent aoe = (ArrayOfEvent) value;
                     Event[] evts = aoe.getEvent();
                     if (evts == null) {
-                        s_logger.error("handleChanges received null event array from vCenter");
+                        s_logger.info("handleChanges received null event array from vCenter");
                         continue;
                     }
                     for (int evtID = 0; evtID < evts.length; ++evtID)
                     {
                         Event anEvent = evts[evtID];
                         if (anEvent == null) {
-                            s_logger.error("handleChanges received null event from vCenter");
+                            s_logger.info("handleChanges received null event from vCenter");
                             continue;
                         }
                         s_logger.info("\n----------" + "\n Event ID: "
@@ -386,10 +386,11 @@ public class VCenterNotify implements Runnable
                     VCenterEventHandler handler = new VCenterEventHandler(
                             (Event) value, vcenterDB, vncDB);
                     // for now we handle the events in the same thread
-                    if (vncDB.isVncApiServerAlive()) {
-                        handler.handle();
-                    } else {
+                    if (vncDB.isVncApiServerAlive() == false) {
+                        s_logger.error("API server is not alive");
                         syncNeeded = true;
+                    } else {
+                        handler.handle();
                     }
                 } else {
                     s_logger.info("\n Received unhandled property of type " + value.getClass().getName());
@@ -503,9 +504,14 @@ public class VCenterNotify implements Runnable
 
                 // Perform sync between VNC and VCenter DBs.
                 if (getAddPortSyncAtPluginStart() == true || syncNeeded) {
+                    while (vncDB.isVncApiServerAlive() == false) {
+                        s_logger.error("Waiting for API server before starting sync");
+                        Thread.sleep(5000);
+                    }
+                    
                     TaskWatchDog.startMonitoring(this, "Sync",
                             300000, TimeUnit.MILLISECONDS);
-
+                    
                     // When syncVirtualNetworks is run the first time, it also does
                     // addPort to vrouter agent for existing VMIs.
                     // Clear the flag  on first run of syncVirtualNetworks.

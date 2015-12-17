@@ -68,7 +68,6 @@ import com.vmware.vim25.mo.VmwareDistributedVirtualSwitch;
 public class VCenterDB {
     private static final Logger s_logger =
             Logger.getLogger(VCenterDB.class);
-    protected static final String contrailVRouterVmNamePrefix = "contrailVM";
     private static final String esxiToVRouterIpMapFile = "/etc/contrail/ESXiToVRouterIp.map";
     static final int VCENTER_READ_TIMEOUT = 30000; //30 sec
     protected final String contrailDvSwitchName;
@@ -581,73 +580,6 @@ public class VCenterDB {
         }
         return null;
     }
-    
-
-    public boolean doIgnoreVirtualMachine(String vmName) {
-        // Ignore contrailVRouterVMs since those should not be reflected in
-        // Contrail VNC
-        if (vmName.toLowerCase().contains(
-                contrailVRouterVmNamePrefix.toLowerCase())) {
-            return true;
-        }
-        return false;
-    }
-    
-    VmwareVirtualMachineInfo fillVmwareVirtualMachineInfo(
-                                       VirtualMachine vcenterVm,
-                                       VirtualMachineConfigInfo vmConfigInfo,
-                                       DistributedVirtualPortgroup portGroup)
-                                       throws Exception {
-        // Name
-        String vmName = vcenterVm.getName();
-        String dvPgName = portGroup.getName();
-
-        // Ignore virtual machine?
-        if (doIgnoreVirtualMachine(vmName)) {
-            s_logger.debug("dvPg: " + dvPgName +
-                    " Ignoring vm: " + vmName);
-            return null;
-        }
-
-        // Is it powered on?
-        VirtualMachineRuntimeInfo vmRuntimeInfo = vcenterVm.getRuntime();
-        VirtualMachinePowerState powerState =
-                vmRuntimeInfo.getPowerState();
-            s_logger.debug("dvPg: " + dvPgName + " VM: " +
-                    vmName + " Power State: " + powerState);
-
-        // Extract MAC address
-        String vmMac = getVirtualMachineMacAddress(vmConfigInfo,
-                portGroup);
-        if (vmMac == null) {
-            s_logger.error("dvPg: " + dvPgName + " vm: " +
-                    vmName + " MAC Address NOT found");
-            return null;
-        }
-
-        // Get host information
-        ManagedObjectReference hmor = vmRuntimeInfo.getHost();
-        HostSystem host = new HostSystem(
-            vcenterVm.getServerConnection(), hmor);
-        String hostName = host.getName();
-
-        // Get Contrail VRouter virtual machine information from the host
-        String vrouterIpAddress = getVRouterVMIpFabricAddress(
-                hostName, host, contrailVRouterVmNamePrefix);
-        if (vrouterIpAddress == null) {
-            s_logger.error("ContrailVM not found on ESXi host: " 
-                    + hostName + ", skipping VM (" + vmName + ") creation"
-                    + " on network: " + dvPgName);
-            return null;
-        }
-
-        // found valid vm instance.
-        VmwareVirtualMachineInfo vmInfo = new
-                VmwareVirtualMachineInfo(vmName, hostName, hmor,
-                        vrouterIpAddress, vmMac, powerState);
-
-        return vmInfo;
-    }
 
     private static boolean doIgnoreVirtualNetwork(DVPortSetting portSetting) {
         // Ignore dvPgs that do not have PVLAN/VLAN configured
@@ -1134,7 +1066,7 @@ public class VCenterDB {
                     (VirtualMachine)vms[i], pTables[i]);
             
             // Ignore virtual machine?
-            if (doIgnoreVirtualMachine(vmInfo.getName())) {
+            if (vmInfo.ignore()) {
                 s_logger.debug(" Ignoring vm: " + vmInfo.getName());
                 continue;
             }

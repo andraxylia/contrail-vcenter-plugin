@@ -38,7 +38,8 @@ public class VmwareVirtualMachineInfo extends VCenterObject {
     private VirtualMachinePowerState powerState;
     private String toolsRunningStatus;
     private SortedMap<String, VmwareVirtualMachineInterfaceInfo> vmiInfoMap; // key is MAC address
-    
+    protected static final String contrailVRouterVmNamePrefix = "contrailVM";
+
     // Vmware objects
     com.vmware.vim25.mo.VirtualMachine vm;
     com.vmware.vim25.mo.HostSystem host;
@@ -90,7 +91,7 @@ public class VmwareVirtualMachineInfo extends VCenterObject {
         }
         
         vrouterIpAddress = vcenterDB.getVRouterVMIpFabricAddress(
-                hostName, host, VCenterDB.contrailVRouterVmNamePrefix);
+                hostName, host, contrailVRouterVmNamePrefix);
         
         uuid = vm.getConfig().getInstanceUuid();
 
@@ -149,7 +150,7 @@ public class VmwareVirtualMachineInfo extends VCenterObject {
         toolsRunningStatus  = (String)  pTable.get("guest.toolsRunningStatus");
         
         vrouterIpAddress = vcenterDB.getVRouterVMIpFabricAddress(
-                hostName, host, VCenterDB.contrailVRouterVmNamePrefix);
+                hostName, host, contrailVRouterVmNamePrefix);
 
         vmiInfoMap = new ConcurrentSkipListMap<String, VmwareVirtualMachineInterfaceInfo>();
     }
@@ -500,5 +501,15 @@ public class VmwareVirtualMachineInfo extends VCenterObject {
         vncDB.deleteVirtualMachine(this);
         
         MainDB.deleted(this);
+    }
+    
+    public boolean ignore(String vmName) {
+        // Ignore contrailVRouterVMs since those should not be reflected in
+        // Contrail VNC
+        if (name.toLowerCase().contains(
+                contrailVRouterVmNamePrefix.toLowerCase())) {
+            return true;
+        }
+        return false;
     }
 }

@@ -88,6 +88,12 @@ public class VCenterEventHandler {
         
         VmwareVirtualMachineInfo newVmInfo = new VmwareVirtualMachineInfo(event, vcenterDB, vncDB);
         
+        // Ignore virtual machine?
+        if (newVmInfo.ignore()) {
+            s_logger.debug(" Ignoring create vm: " + newVmInfo.getName());
+            return;
+        }
+        
         newVmInfo.create(vncDB);
         
         // add a watch on this Vm guest OS to be notified of guest OS changes,
@@ -98,7 +104,12 @@ public class VCenterEventHandler {
     private void handleVmUpdateEvent() throws Exception {
         VmwareVirtualMachineInfo newVmInfo = new VmwareVirtualMachineInfo(event, vcenterDB, vncDB);
          
-       
+        // Ignore virtual machine?
+        if (newVmInfo.ignore()) {
+            s_logger.debug(" Ignoring update vm: " + newVmInfo.getName());
+            return;
+        }
+        
         VmwareVirtualMachineInfo oldVmInfo = MainDB.getVmById(newVmInfo.getUuid());
         
         if (oldVmInfo != null) {
@@ -114,6 +125,13 @@ public class VCenterEventHandler {
 
     private void handleVmDeleteEvent() throws Exception {
         VmwareVirtualMachineInfo vmInfo = new VmwareVirtualMachineInfo(event, vcenterDB, vncDB);
+        
+        // Ignore virtual machine?
+        if (vmInfo.ignore()) {
+            s_logger.debug(" Ignoring vm delete: " + vmInfo.getName());
+            return;
+        }
+        
         VCenterNotify.unwatchVm(vmInfo);  
         vmInfo.delete(vncDB);
     }
