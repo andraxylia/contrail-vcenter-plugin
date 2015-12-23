@@ -161,6 +161,13 @@ public class VmwareVirtualMachineInterfaceInfo extends VCenterObject {
             VRouterNotifier.created(this);
         }
         
+        if (vncDB.mode != Mode.VCENTER_AS_COMPUTE && vnInfo.getExternalIpam() 
+            && vmInfo.getToolsRunningStatus().equals(VirtualMachineToolsRunningStatus.guestToolsRunning)) {
+            // static IP Address & vmWare tools installed
+            // see if we can read it from Guest Nic Info
+            VCenterNotify.watchVm(vmInfo);
+        }
+
         vnInfo.created(this);
         vmInfo.created(this);
     }

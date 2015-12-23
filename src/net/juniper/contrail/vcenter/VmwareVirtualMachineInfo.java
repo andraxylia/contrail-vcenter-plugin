@@ -374,10 +374,11 @@ public class VmwareVirtualMachineInfo extends VCenterObject {
     }
 
     boolean ignore() {
-        if (vrouterIpAddress == null) {
+        // by design we skip unconnected VMs
+        if (vrouterIpAddress == null || vmiInfoMap.size() == 0) {
             return true;
         }
-        
+
         return false;
     }
     

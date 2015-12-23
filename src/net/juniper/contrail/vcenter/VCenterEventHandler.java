@@ -115,23 +115,17 @@ public class VCenterEventHandler {
         if (oldVmInfo != null) {
             oldVmInfo.update(newVmInfo, vncDB);
         } else {
-            newVmInfo.create(vncDB);
-            
-            // add a watch on this Vm guest OS to be notified of guest OS changes,
-            // for instance IP address changes
-            VCenterNotify.watchVm(newVmInfo);
+            newVmInfo.create(vncDB);           
         }
     }
 
     private void handleVmDeleteEvent() throws Exception {
-        VmwareVirtualMachineInfo vmInfo = new VmwareVirtualMachineInfo(event, vcenterDB, vncDB);
+        VmwareVirtualMachineInfo vmInfo = MainDB.getVmByName(event.getVm().getName());
         
-        // Ignore virtual machine?
-        if (vmInfo.ignore()) {
-            s_logger.debug(" Ignoring vm delete: " + vmInfo.getName());
+        if (vmInfo == null) {
             return;
         }
-        
+
         VCenterNotify.unwatchVm(vmInfo);  
         vmInfo.delete(vncDB);
     }
@@ -141,6 +135,8 @@ public class VCenterEventHandler {
                 new VmwareVirtualNetworkInfo(event, vcenterDB);
         
         newVnInfo.create(vncDB);
+        
+        VCenterNotify.watchVn(newVnInfo);
     }
 
     private void handleNetworkUpdateEvent() throws Exception {
@@ -153,13 +149,18 @@ public class VCenterEventHandler {
             oldVnInfo.update(newVnInfo, vncDB);
         } else {
             newVnInfo.create(vncDB);
+            VCenterNotify.watchVn(newVnInfo);
         }
     }
 
     private void handleNetworkDeleteEvent() throws Exception {
         
-        VmwareVirtualNetworkInfo vnInfo = 
-                new VmwareVirtualNetworkInfo(event, vcenterDB);
+        VmwareVirtualNetworkInfo vnInfo = MainDB.getVnByName(event.getNet().getName());
+        
+        if (vnInfo == null) {
+            return;
+        }
+        VCenterNotify.unwatchVn(vnInfo);  
         vnInfo.delete(vncDB);
     }
 

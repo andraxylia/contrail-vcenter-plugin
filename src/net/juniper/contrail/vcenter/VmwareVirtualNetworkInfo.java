@@ -39,6 +39,7 @@ public class VmwareVirtualNetworkInfo extends VCenterObject {
     private short primaryVlanId;
     private SortedMap<String, VmwareVirtualMachineInfo> vmInfo;
     private SortedMap<String, VmwareVirtualMachineInterfaceInfo> vmiInfoMap; // key is MAC address
+    private Integer ipPoolId;
     private String subnetAddress;
     private String subnetMask;
     private String gatewayAddress;
@@ -105,15 +106,6 @@ public class VmwareVirtualNetworkInfo extends VCenterObject {
             name = event.getNet().getName();
             net = vcenterDB.getVmwareNetwork(name, dvs, dvsName, dcName);
         }
-        
-        // Extract IP Pools
-        IpPool[] ipPools = vcenterDB.getIpPoolManager().queryIpPools(dc);
-        if ((vcenterDB.mode != Mode.VCENTER_AS_COMPUTE)
-                && (ipPools == null || ipPools.length == 0)) {
-            throw new Exception("dvSwitch: " + dvsName +
-                    " Datacenter: " + dcName + " IP Pools NOT " +
-                    "configured");
-        }
 
         dpg = vcenterDB.getVmwareDpg(name, dvs, dvsName, dcName);
         ManagedObject mo[] = new ManagedObject[1];
@@ -133,7 +125,7 @@ public class VmwareVirtualNetworkInfo extends VCenterObject {
             throw new RemoteException("Could not read properties for network " + name);
         }
         
-        populateInfo(vcenterDB, pTables[0], ipPools);
+        populateInfo(vcenterDB, pTables[0]);
     }
 
     public VmwareVirtualNetworkInfo(VCenterDB vcenterDB,
@@ -158,11 +150,10 @@ public class VmwareVirtualNetworkInfo extends VCenterObject {
         this.dvs = dvs;
         this.dvsName = dvsName;
         
-        populateInfo(vcenterDB, pTable, ipPools);
+        populateInfo(vcenterDB, pTable);
     }
     
-    void populateInfo(VCenterDB vcenterDB,
-            Hashtable pTable, IpPool[] ipPools) throws Exception {
+    void populateInfo(VCenterDB vcenterDB, Hashtable pTable) throws Exception {
         
         vmInfo = new ConcurrentSkipListMap<String, VmwareVirtualMachineInfo>();
         
@@ -192,28 +183,15 @@ public class VmwareVirtualNetworkInfo extends VCenterObject {
 
         populateVlans(vcenterDB);
         
-        populateAddressManagement(vcenterDB, pTable, ipPools);
+        populateAddressManagement(vcenterDB, pTable);
     }
 
     private void populateAddressManagement(VCenterDB vcenterDB,
-            Hashtable pTable, IpPool[] ipPools)
+            Hashtable pTable)
             throws RuntimeFault, RemoteException, Exception {
         
-        if (ipPools != null && ipPools.length > 0) {
-            Integer poolId     = (Integer) pTable.get("summary.ipPoolId");
-            IpPool ipPool = vcenterDB.getIpPool(dpg, name, ipPools, poolId);
-            if (ipPool != null) {
-                IpPoolIpPoolConfigInfo ipConfigInfo = ipPool.getIpv4Config();
+        setIpPoolId( (Integer) pTable.get("summary.ipPoolId"), vcenterDB);
         
-                // ifconfig setting
-                subnetAddress = ipConfigInfo.getSubnetAddress();
-                subnetMask = ipConfigInfo.getNetmask();
-                gatewayAddress = ipConfigInfo.getGateway();
-                ipPoolEnabled = ipConfigInfo.getIpPoolEnabled();
-                range = ipConfigInfo.getRange();
-            }
-        }
-
         // Read externalIpam flag from custom field
         DistributedVirtualSwitchKeyedOpaqueBlob[] opaqueBlobs = null;
         Object obj = pTable.get("config.vendorSpecificConfig");
@@ -307,6 +285,70 @@ public class VmwareVirtualNetworkInfo extends VCenterObject {
 
     public void setVmInfo(SortedMap<String, VmwareVirtualMachineInfo> vmInfo) {
         this.vmInfo = vmInfo;
+    }
+
+    private IpPool getIpPool(Integer poolid, IpPool[] ipPools) {
+        if (poolid == null) {
+            // there is a vmware bug in which the ip pool association
+            // is lost upon vcenter restart.
+            // Retrieve the pool based on name
+            // Remove this code if vmware bug is fixed
+            String IpPoolForPG = "ip-pool-for-" + name;
+            for (IpPool pool : ipPools) {
+                if (IpPoolForPG.equals(pool.getName())) {
+                    return pool;
+                }
+            }
+            return null;
+        }
+
+        for (IpPool pool : ipPools) {
+            if (pool.id.equals(poolid)) {
+              return pool;
+            }
+        }
+
+        return null;
+    }
+    
+    public Integer getIpPoolId() {
+        return ipPoolId;
+    }
+
+    public void setIpPoolId(Integer poolId, VCenterDB vcenterDB) 
+            throws RuntimeFault, RemoteException {
+        if ((ipPoolId == null && poolId == null)
+                || (ipPoolId != null && poolId != null && ipPoolId.equals(poolId))) {
+            return;
+        }
+
+        // Extract IP Pools
+        IpPool[] ipPools = vcenterDB.getIpPoolManager().queryIpPools(dc);
+        if ( ipPools == null || ipPools.length == 0) {
+            return;
+        }
+
+        this.ipPoolId = poolId;
+        
+        if (ipPoolId != null) {
+            IpPool ipPool = getIpPool(ipPoolId, ipPools);
+            if (ipPool != null) {
+                IpPoolIpPoolConfigInfo ipConfigInfo = ipPool.getIpv4Config();
+        
+                // ifconfig setting
+                subnetAddress = ipConfigInfo.getSubnetAddress();
+                subnetMask = ipConfigInfo.getNetmask();
+                gatewayAddress = ipConfigInfo.getGateway();
+                ipPoolEnabled = ipConfigInfo.getIpPoolEnabled();
+                range = ipConfigInfo.getRange();
+            }
+        } else {
+            subnetAddress = null;
+            subnetMask = null;
+            gatewayAddress = null;
+            ipPoolEnabled = false;
+            range = null;
+        }
     }
 
     public String getSubnetAddress() {

@@ -44,6 +44,15 @@ public class MainDB {
         return null;
     }
 
+    public static VmwareVirtualMachineInfo getVmByName(String name) {
+        for (VmwareVirtualMachineInfo vmInfo: vmwareVMs.values()) {
+            if (vmInfo.getName().equals(name)) {
+                return vmInfo;
+            }
+        }
+        return null;
+    }
+
     public static VmwareVirtualNetworkInfo getVnById(String uuid) {
         if (vmwareVNs.containsKey(uuid)) {
             return vmwareVNs.get(uuid);

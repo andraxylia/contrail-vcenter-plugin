@@ -163,7 +163,7 @@ public class VncDB {
                 alive = false;
                 return false;
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             alive = false;
             return false;
         }
@@ -463,24 +463,52 @@ public class VncDB {
             throw new IllegalArgumentException();
         }
            
-        String vnUuid = vnInfo.getUuid();
-        boolean create = false;
-        VirtualNetwork vn = new VirtualNetwork();
+      
+        VirtualNetwork    vn = new VirtualNetwork();
+        vnInfo.apiVn = vn;
         
+        vn.setUuid(vnInfo.getUuid());
         vn.setName(vnInfo.getName());
         vn.setDisplayName(vnInfo.getName());
-        vn.setUuid(vnInfo.getUuid());
         vn.setIdPerms(vCenterIdPerms);
         vn.setParent(vCenterProject);
         vn.setExternalIpam(vnInfo.getExternalIpam());
-        vn.setNetworkIpam(vCenterIpam, getSubnet(vnInfo, vn));
-
-        vnInfo.apiVn = vn;
+        VnSubnetsType subnet = getSubnet(vnInfo, vn);
+        if (subnet != null) {
+            vn.setNetworkIpam(vCenterIpam, subnet);
+        }
+        
         apiConnector.create(vn);
         s_logger.info("Created " + vnInfo);
     }
 
+    public void updateVirtualNetwork(VmwareVirtualNetworkInfo vnInfo)
+            throws IOException {
+        if (mode == Mode.VCENTER_AS_COMPUTE) {
+            return;
+        }
+        
+        if (vnInfo == null) {
+            s_logger.error("Null pointer argument");
+            throw new IllegalArgumentException();
+        }
+      
+        VirtualNetwork    vn = new VirtualNetwork();
+        vn.setUuid(vnInfo.getUuid());
+        
+        VnSubnetsType subnet = getSubnet(vnInfo, vn);
+        if (subnet != null) {
+            vn.setNetworkIpam(vCenterIpam, subnet);
+        }
+        apiConnector.update(vn);
+        s_logger.info("Updated " + vnInfo);
+    }
+
     private VnSubnetsType getSubnet(VmwareVirtualNetworkInfo vnInfo, VirtualNetwork vn) {
+        s_logger.info("getSubnet address " + vnInfo.getSubnetAddress() + ", mask " + vnInfo.getSubnetMask());
+        if (vnInfo.getSubnetAddress() == null || vnInfo.getSubnetMask() == null) {
+            return null;
+        }
         SubnetUtils subnetUtils = new SubnetUtils(vnInfo.getSubnetAddress(), vnInfo.getSubnetMask());
         String cidr = subnetUtils.getInfo().getCidrSignature();
         String[] addr_pair = cidr.split("\\/");
@@ -748,7 +776,9 @@ public class VncDB {
             vmi.setParent(apiVmi.getParent());
             vmi.setName(apiVmi.getName());
             vmi.setUuid(apiVmi.getUuid());
-            vmi.addSecurityGroup(secGroup);
+            if (secGroup != null) {
+                vmi.addSecurityGroup(secGroup);
+            }
             vmi.clearSecurityGroup();
             apiConnector.update(vmi);
             apiVmi.clearSecurityGroup();

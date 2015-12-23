@@ -299,30 +299,6 @@ public class VCenterDB {
     public void setDatacenter(Datacenter _dc) {
       contrailDC = _dc;
     }
-
-    public IpPool getIpPool(
-            DistributedVirtualPortgroup portGroup, IpPool[] ipPools) {
-
-        // If PG to IpPool association exists, check
-        NetworkSummary summary = portGroup.getSummary();
-        Integer poolid = summary.getIpPoolId();
-        if (poolid != null) {
-            for (IpPool pool : ipPools) {
-                if (pool.id == poolid.intValue()) {
-                  return pool;
-                }
-            }
-        }
-
-        // Validate that the IpPool name matches PG names 
-        String IpPoolForPG = "ip-pool-for-" + portGroup.getName();
-        for (IpPool pool : ipPools) {
-            if (IpPoolForPG.equals(pool.getName())) {
-                return pool;
-            }
-        }
-        return null;
-    }
     
     protected static String getVirtualMachineMacAddress(
             VirtualMachineConfigInfo vmConfigInfo,
@@ -692,30 +668,6 @@ public class VCenterDB {
         return false;
     }
 
-    public IpPool getIpPool(DistributedVirtualPortgroup portGroup,
-                            String dvPgName,
-                            IpPool[] ipPools,
-                            Integer poolid) {
-
-        // If PG to IpPool association exists, check
-        if (poolid != null) {
-            for (IpPool pool : ipPools) {
-                if (pool.id == poolid.intValue()) {
-                  return pool;
-                }
-            }
-        }
-
-        // Validate that the IpPool name matches PG names 
-        String IpPoolForPG = "ip-pool-for-" + dvPgName;
-        for (IpPool pool : ipPools) {
-            if (IpPoolForPG.equals(pool.getName())) {
-                return pool;
-            }
-        }
-        return null;
-    }
- 
     private String getVirtualMachineIpAddress(GuestNicInfo[] nicInfos, 
                                               String dvPgName, 
                                               String vmName, String vmMac)
@@ -1032,6 +984,7 @@ public class VCenterDB {
                             contrailDVS, contrailDvSwitchName,
                             ipPools, pvlanMapArray);
             
+            VCenterNotify.addVn2WatchList(vnInfo);
             map.put(vnInfo.getUuid(), vnInfo);
         }
 
@@ -1064,26 +1017,19 @@ public class VCenterDB {
             VmwareVirtualMachineInfo vmInfo = new VmwareVirtualMachineInfo(this,
                     dc, dcName,
                     (VirtualMachine)vms[i], pTables[i]);
-            
+                        
+            readVirtualMachineInterfaces(vmInfo);
+                        
             // Ignore virtual machine?
             if (vmInfo.ignore()) {
                 s_logger.debug(" Ignoring vm: " + vmInfo.getName());
                 continue;
             }
-            
-            readVirtualMachineInterfaces(vmInfo);
-            
-            if (vmInfo.getVmiInfo().size() == 0) {
-                // this can happen if the VM is not connected to any network
-                // By design we skip unconnected VMs
-                continue;
-            }
-            
+
             map.put(vmInfo.getUuid(), vmInfo);
-            VCenterNotify.addVm(vmInfo);
         }
     }
-    
+
     SortedMap<String, VmwareVirtualMachineInfo> readVirtualMachines() 
             throws IOException, Exception {
         
@@ -1115,7 +1061,7 @@ public class VCenterDB {
                 vnInfo = MainDB.getVnByName(netName);
                 if (vnInfo == null) {
                     if (mode == Mode.VCENTER_ONLY) {
-                        s_logger.error("Cannot retrive network with name " + netName);
+                        s_logger.info("Skipping VMI in unmanaged network " + netName);
                         continue;
                     }
                 }
@@ -1126,7 +1072,7 @@ public class VCenterDB {
                 String uuid = net.getName();
                 vnInfo = MainDB.getVnById(uuid);
                 if (vnInfo == null) {
-                    s_logger.error("Cannot retrive network with UUID " + uuid);
+                    s_logger.info("Skipping VMI in unmanaged network " + uuid);
                     continue;
                 }
                 break;
@@ -1139,16 +1085,18 @@ public class VCenterDB {
 
             vmiInfo.setMacAddress(getVirtualMachineMacAddress(vm.getConfig(), vnInfo.getDpg()));
             
-            if (vnInfo.getExternalIpam() 
+            if (mode != Mode.VCENTER_AS_COMPUTE && vnInfo.getExternalIpam() 
                 && vmInfo.getToolsRunningStatus().equals(VirtualMachineToolsRunningStatus.guestToolsRunning)) {
                 // static IP Address & vmWare tools installed
                 // see if we can read it from Guest Nic Info
-                vmiInfo.setIpAddress(getVirtualMachineIpAddress(vm, vnInfo.getName()));
+                String ipAddr = getVirtualMachineIpAddress(vm, vnInfo.getName());
+                vmiInfo.setIpAddress(ipAddr);
+                VCenterNotify.addVm2WatchList(vmiInfo.vmInfo);
             }
             vmInfo.created(vmiInfo);
         }
     }
-    
+
     public boolean isAlive()  {
         Folder folder = serviceInstance.getRootFolder();
         if (folder == null) {
