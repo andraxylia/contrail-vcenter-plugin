@@ -984,7 +984,7 @@ public class VCenterDB {
                             contrailDVS, contrailDvSwitchName,
                             ipPools, pvlanMapArray);
             
-            VCenterNotify.addVn2WatchList(vnInfo);
+            VCenterNotify.watchVn(vnInfo);
             map.put(vnInfo.getUuid(), vnInfo);
         }
 
@@ -1091,7 +1091,7 @@ public class VCenterDB {
                 // see if we can read it from Guest Nic Info
                 String ipAddr = getVirtualMachineIpAddress(vm, vnInfo.getName());
                 vmiInfo.setIpAddress(ipAddr);
-                VCenterNotify.addVm2WatchList(vmiInfo.vmInfo);
+                VCenterNotify.watchVm(vmiInfo.vmInfo);
             }
             vmInfo.created(vmiInfo);
         }

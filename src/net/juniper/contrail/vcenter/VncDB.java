@@ -834,15 +834,21 @@ public class VncDB {
             return;
         }
         
-        if (vmiInfo == null || vmiInfo.apiVmi == null) {
+        if (vmiInfo == null) {
             s_logger.info("Null argument");
             return;
         }
+        VirtualMachineInterface apiVmi = (VirtualMachineInterface) apiConnector.findById(
+                    VirtualMachineInterface.class, vmiInfo.getUuid());
+        if (apiVmi == null) {
+            return;
+        }
+        vmiInfo.apiVmi = apiVmi;
         
        
         // delete instance Ip
         List<ObjectReference<ApiPropertyBase>> instanceIpRefs = 
-                vmiInfo.apiVmi.getInstanceIpBackRefs();
+                apiVmi.getInstanceIpBackRefs();
         for (ObjectReference<ApiPropertyBase> instanceIpRef : 
             Utils.safe(instanceIpRefs)) {
             s_logger.info("Delete instance IP: " + 
@@ -995,15 +1001,13 @@ public class VncDB {
 
     private void readInstanceIp(VmwareVirtualMachineInterfaceInfo vmiInfo) 
             throws IOException {
-        VirtualMachineInterface apiVmi = vmiInfo.apiVmi;
-        if (apiVmi == null) {
-            apiVmi = (VirtualMachineInterface) apiConnector.findById(
+        VirtualMachineInterface apiVmi = 
+                (VirtualMachineInterface) apiConnector.findById(
                     VirtualMachineInterface.class, vmiInfo.getUuid());
-            if (apiVmi == null) {
-                return;
-            }
-            vmiInfo.apiVmi = apiVmi;
+        if (apiVmi == null) {
+            return;
         }
+        vmiInfo.apiVmi = apiVmi;
 
         List<ObjectReference<ApiPropertyBase>> instanceIpRefs = 
                 apiVmi.getInstanceIpBackRefs();
