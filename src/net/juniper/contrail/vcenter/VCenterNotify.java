@@ -125,7 +125,6 @@ public class VCenterNotify implements Runnable
             "VmMacChangedEvent",
             "VmMacAssignedEvent",
             "VmReconfiguredEvent",
-            "VmConnectedEvent",
             "VmEmigratingEvent",
             "VmMigratedEvent",
             "VmBeingMigratedEvent",
@@ -401,7 +400,7 @@ public class VCenterNotify implements Runnable
                             continue;
                         }
                         vnInfo.setIpPoolId(newPoolId, vcenterDB);
-                        s_logger.info("IP Pool ID for " + vnInfo + "set to " + newPoolId);
+                        s_logger.info("IP Pool ID for " + vnInfo + " set to " + newPoolId);
                         vncDB.updateVirtualNetwork(vnInfo);
                     }
                 } else if (propName.equals("guest.toolsRunningStatus")) {

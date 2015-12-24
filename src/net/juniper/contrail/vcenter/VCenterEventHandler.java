@@ -164,7 +164,7 @@ public class VCenterEventHandler {
         vnInfo.delete(vncDB);
     }
 
-    private void handleEvent(Event event) throws IOException {
-        throw new UnsupportedOperationException("Buddy you need to get a hold off this event");
+    private void handleEvent(Event event) {
+        s_logger.error("Buddy you need to get a hold off this event");
     }
 }
