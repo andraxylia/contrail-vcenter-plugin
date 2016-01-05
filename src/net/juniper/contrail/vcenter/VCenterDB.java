@@ -9,6 +9,8 @@ import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.URL;
 import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Hashtable;
 import java.util.Map;
 import java.util.TreeMap;
@@ -64,6 +66,7 @@ import com.vmware.vim25.mo.util.PropertyCollectorUtil;
 import com.vmware.vim25.mo.ServiceInstance;
 import com.vmware.vim25.mo.VirtualMachine;
 import com.vmware.vim25.mo.VmwareDistributedVirtualSwitch;
+import com.vmware.vim25.mo.ComputeResource; 
 
 public class VCenterDB {
     private static final Logger s_logger =
@@ -996,14 +999,25 @@ public class VCenterDB {
             Datacenter dc, String dcName) 
                 throws Exception {
 
-        ManagedEntity[] vms = new InventoryNavigator(me).searchManagedEntities("VirtualMachine"); 
-        
+        ManagedEntity[] vms = new InventoryNavigator(me).searchManagedEntities("VirtualMachine");
+
         if (vms == null || vms.length == 0) {
             s_logger.debug("Datacenter: " + dcName + 
                     " NO virtual machines connected");
             return;
         }
-    
+        
+        String vrouterIpAddress = null;
+        HostSystem host = null;
+        // If the passed Managed Entity is at the host-level, then pass 
+        // the hostName and Contrail VM IP Address instead of finding
+        // it every time for every VM which is costly.
+        if (me instanceof HostSystem) {
+            host = (HostSystem) me;
+            String hostName = host.getName();
+            vrouterIpAddress = getVRouterVMIpFabricAddress(hostName, host, dcName); 
+        }
+
         Hashtable[] pTables = PropertyCollectorUtil.retrieveProperties(vms, "VirtualMachine",
                 new String[] {"name",
                 "config.instanceUuid",
@@ -1016,7 +1030,8 @@ public class VCenterDB {
         for (int i=0; i < vms.length; i++) {
             VmwareVirtualMachineInfo vmInfo = new VmwareVirtualMachineInfo(this,
                     dc, dcName,
-                    (VirtualMachine)vms[i], pTables[i]);
+                    (VirtualMachine)vms[i], pTables[i],
+                    host, vrouterIpAddress);
                         
             readVirtualMachineInterfaces(vmInfo);
                         
@@ -1042,7 +1057,28 @@ public class VCenterDB {
          * for (host: dc)
             readVirtualMachines(map, host, dc, dcName);
          */
-        readVirtualMachines(map, contrailDC, contrailDC, contrailDataCenterName);
+
+        Folder hostsFolder = contrailDC.getHostFolder();
+        List<HostSystem> hostsList = new ArrayList<HostSystem>();
+
+        for (ManagedEntity e : hostsFolder.getChildEntity()) {
+            // This is a cluster resource. Delve deeper to 
+            // find more hosts.
+            if (e instanceof ComputeResource) {
+                ComputeResource cluster = (ComputeResource) e;
+                for(HostSystem host : cluster.getHosts()) {
+                    hostsList.add((HostSystem)host);
+                }
+            }
+
+            if (e instanceof HostSystem) {
+                hostsList.add((HostSystem)e);
+            }
+        }
+
+        for (HostSystem host : hostsList) {
+            readVirtualMachines(map, host, contrailDC, contrailDataCenterName);
+        }
         
         return map;
     }

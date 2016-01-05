@@ -125,7 +125,9 @@ public class VmwareVirtualMachineInfo extends VCenterObject {
 
     public VmwareVirtualMachineInfo(VCenterDB vcenterDB,
             com.vmware.vim25.mo.Datacenter dc, String dcName,
-            com.vmware.vim25.mo.VirtualMachine vm, Hashtable pTable) 
+            com.vmware.vim25.mo.VirtualMachine vm, Hashtable pTable, 
+            com.vmware.vim25.mo.HostSystem host,
+            String vrouterIpAddress) 
                     throws Exception {
 
         if (vcenterDB == null || dc == null || dcName == null
@@ -141,16 +143,19 @@ public class VmwareVirtualMachineInfo extends VCenterObject {
         uuid  = (String)  pTable.get("config.instanceUuid");
         name = (String) pTable.get("name");
 
-        ManagedObjectReference hostHmor = (ManagedObjectReference) pTable.get("runtime.host");
-        host = new HostSystem(
-            vm.getServerConnection(), hostHmor);
+        if (host == null) {
+            ManagedObjectReference hostHmor = (ManagedObjectReference) pTable.get("runtime.host");
+            host = new HostSystem(vm.getServerConnection(), hostHmor);
+        }
         hostName = host.getName();
 
         powerState = (VirtualMachinePowerState)pTable.get("runtime.powerState");
         toolsRunningStatus  = (String)  pTable.get("guest.toolsRunningStatus");
-        
-        vrouterIpAddress = vcenterDB.getVRouterVMIpFabricAddress(
-                hostName, host, contrailVRouterVmNamePrefix);
+
+        if (vrouterIpAddress == null) {
+            vrouterIpAddress = vcenterDB.getVRouterVMIpFabricAddress(
+                    hostName, host, contrailVRouterVmNamePrefix);
+        }
 
         vmiInfoMap = new ConcurrentSkipListMap<String, VmwareVirtualMachineInterfaceInfo>();
     }
