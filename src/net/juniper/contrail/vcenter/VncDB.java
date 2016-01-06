@@ -575,9 +575,9 @@ public class VncDB {
             return;
         }
  
-        clearInstanceIps(apiVn);
+        deleteInstanceIps(apiVn);
         
-        clearVirtualMachineInterfaces(apiVn);
+        deleteVirtualMachineInterfaces(apiVn);
         
         apiConnector.delete(apiVn);
         vnInfo.apiVn = null;
@@ -630,9 +630,9 @@ public class VncDB {
             return;
         }
 
-        clearVirtualMachineInterfaces(apiVm);
+        deleteVirtualMachineInterfaces(apiVm);
         
-        apiConnector.delete(vmInfo.apiVm);
+        apiConnector.delete(apiVm);
         vmInfo.apiVm = null;
         s_logger.info("Deleted " + vmInfo);
     }
@@ -692,10 +692,12 @@ public class VncDB {
        
         VirtualMachineInterface vmInterface = new VirtualMachineInterface();
         vmInterface.setDisplayName(vmInterfaceName);
-        String vmiUuid = UUID.randomUUID().toString();
-        vmiInfo.setUuid(vmiUuid);
-        vmInterface.setUuid(vmiUuid);
-        vmInterface.setName(vmiUuid);
+        
+        if (vmiInfo.getUuid() == null) {
+            vmiInfo.setUuid(UUID.randomUUID().toString());
+        }
+        vmInterface.setUuid(vmiInfo.getUuid());
+        vmInterface.setName(vmiInfo.getUuid());
         vmInterface.setParent(vCenterProject);
         vmInterface.setSecurityGroup(vCenterDefSecGrp);
         vmInterface.setVirtualNetwork(network);
@@ -733,7 +735,7 @@ public class VncDB {
 
         clearFloatingIp(apiVmi);
         
-        clearInstanceIps(apiVmi);
+        deleteInstanceIps(apiVmi);
         
         apiConnector.delete(apiVmi);
         vmiInfo.apiVmi = null;
@@ -826,40 +828,6 @@ public class VncDB {
         
         s_logger.debug("Created instanceIP:" + instanceIp.getName() + ": " +
                 instanceIp.getAddress());
-    }
-
-    public void deleteInstanceIp(
-            VmwareVirtualMachineInterfaceInfo vmiInfo)
-            throws IOException {
-        if (mode == Mode.VCENTER_AS_COMPUTE) {
-            return;
-        }
-        
-        if (vmiInfo == null) {
-            s_logger.info("Null argument");
-            return;
-        }
-        VirtualMachineInterface apiVmi = (VirtualMachineInterface) apiConnector.findById(
-                    VirtualMachineInterface.class, vmiInfo.getUuid());
-        if (apiVmi == null) {
-            return;
-        }
-        vmiInfo.apiVmi = apiVmi;
-        
-       
-        // delete instance Ip
-        List<ObjectReference<ApiPropertyBase>> instanceIpRefs = 
-                apiVmi.getInstanceIpBackRefs();
-        for (ObjectReference<ApiPropertyBase> instanceIpRef : 
-            Utils.safe(instanceIpRefs)) {
-            s_logger.info("Delete instance IP: " + 
-                    instanceIpRef.getReferredName());
-            apiConnector.delete(InstanceIp.class, 
-                    instanceIpRef.getUuid());
-            s_logger.info("Deleted Ip Instance " + instanceIpRef.getUuid());
-        }
-        
-        vmiInfo.apiInstanceIp = null;
     }
 
     SortedMap<String, VmwareVirtualNetworkInfo> readVirtualNetworks() {
@@ -1067,7 +1035,7 @@ public class VncDB {
         return null;
     }
     
-    public void clearInstanceIps()
+    public void deleteInstanceIps()
             throws IOException {
             
         List<InstanceIp> apiObjs = null;
@@ -1085,7 +1053,44 @@ public class VncDB {
         }
     }
     
-    private void clearInstanceIps(VirtualNetwork apiVn) 
+    public void deleteInstanceIp(VmwareVirtualMachineInterfaceInfo vmiInfo)
+            throws IOException {
+        if (mode == Mode.VCENTER_AS_COMPUTE) {
+            return;
+        }
+        
+        if (vmiInfo == null) {
+            s_logger.info("Null argument");
+            return;
+        }
+        VirtualMachineInterface apiVmi = (VirtualMachineInterface) apiConnector.findById(
+                    VirtualMachineInterface.class, vmiInfo.getUuid());
+        if (apiVmi == null) {
+            return;
+        }
+        vmiInfo.apiVmi = apiVmi;
+        
+       
+        deleteInstanceIp(apiVmi);
+        
+        vmiInfo.apiInstanceIp = null;
+    }
+
+    public void deleteInstanceIp(VirtualMachineInterface apiVmi) throws IOException {
+        // delete instance Ip
+        List<ObjectReference<ApiPropertyBase>> instanceIpRefs = 
+                apiVmi.getInstanceIpBackRefs();
+        for (ObjectReference<ApiPropertyBase> instanceIpRef : 
+            Utils.safe(instanceIpRefs)) {
+            s_logger.info("Delete instance IP: " + 
+                    instanceIpRef.getReferredName());
+            apiConnector.delete(InstanceIp.class, 
+                    instanceIpRef.getUuid());
+            s_logger.info("Deleted Ip Instance " + instanceIpRef.getUuid());
+        }
+    }
+
+    public void deleteInstanceIps(VirtualNetwork apiVn) 
             throws IOException {
         // delete all instance Ip back refs, if there are any left
         List<ObjectReference<ApiPropertyBase>> instanceIpRefs = 
@@ -1100,7 +1105,7 @@ public class VncDB {
         }
     }
 
-    private void clearInstanceIps(VirtualMachineInterface apiVmi) 
+    public void deleteInstanceIps(VirtualMachineInterface apiVmi) 
             throws IOException {
         // delete all instance Ip back refs, if there are any left
         List<ObjectReference<ApiPropertyBase>> instanceIpRefs = 
@@ -1115,7 +1120,7 @@ public class VncDB {
         }
     }
     
-    public void clearVirtualMachineInterfaces()
+    public void deleteVirtualMachineInterfaces()
             throws IOException {
             
         List<VirtualMachineInterface> apiObjs = null;
@@ -1129,17 +1134,30 @@ public class VncDB {
         }
         
         for (VirtualMachineInterface vmInterface : apiObjs) {
+            deleteInstanceIps(vmInterface);
             apiConnector.delete(vmInterface);
         }
     }
 
-    private void clearVirtualMachineInterfaces(VirtualNetwork apiVn) 
+    public void deleteVirtualMachineInterfaces(VirtualNetwork apiVn) 
             throws IOException {
         // delete all VMIs back refs, if there are any left
         List<ObjectReference<ApiPropertyBase>> vmiRefs = 
                 apiVn.getVirtualMachineInterfaceBackRefs();
         for (ObjectReference<ApiPropertyBase> vmiRef : 
             Utils.safe(vmiRefs)) {
+            VirtualMachineInterface apiVmi = 
+                    (VirtualMachineInterface) apiConnector.findById(
+                    VirtualMachineInterface.class, vmiRef.getUuid());
+            
+            if (apiVmi == null) {
+                s_logger.error("Cannot delete VMI, it does not exist in the API server " 
+                                + vmiRef.getUuid());
+                continue;
+            }
+            
+            deleteInstanceIps(apiVmi);
+            
             s_logger.info("Delete Virtual Machine Interface: " + 
                     vmiRef.getReferredName());
             apiConnector.delete(VirtualMachineInterface.class, 
@@ -1149,13 +1167,25 @@ public class VncDB {
         }
     }
 
-    private void clearVirtualMachineInterfaces(VirtualMachine apiVm) 
+    public void deleteVirtualMachineInterfaces(VirtualMachine apiVm) 
             throws IOException {
         // delete all VMIs back refs, if there are any left
         List<ObjectReference<ApiPropertyBase>> vmiRefs = 
                 apiVm.getVirtualMachineInterfaceBackRefs();
         for (ObjectReference<ApiPropertyBase> vmiRef : 
             Utils.safe(vmiRefs)) {
+            VirtualMachineInterface apiVmi = 
+                    (VirtualMachineInterface) apiConnector.findById(
+                    VirtualMachineInterface.class, vmiRef.getUuid());
+            
+            if (apiVmi == null) {
+                s_logger.error("Cannot delete VMI, it does not exist in the API server " 
+                                + vmiRef.getUuid());
+                continue;
+            }
+            
+            deleteInstanceIps(apiVmi);
+            
             s_logger.info("Delete Virtual Machine Interface: " + 
                     vmiRef.getReferredName());
             apiConnector.delete(VirtualMachineInterface.class, 
@@ -1165,7 +1195,7 @@ public class VncDB {
         }
     }
 
-    public void clearVirtualMachines()
+    public void deleteVirtualMachines()
             throws IOException {
             
         List<VirtualMachine> apiObjs = null;
@@ -1183,7 +1213,7 @@ public class VncDB {
         }
     }
     
-    public void clearVirtualNetworks()
+    public void deleteVirtualNetworks()
             throws IOException {
             
         List<VirtualNetwork> apiObjs = null;
@@ -1201,12 +1231,12 @@ public class VncDB {
         }
     }
     
-    public void clearAll() {
+    public void deleteAll() {
         try {
-        clearInstanceIps();
-        clearVirtualMachineInterfaces();
-        clearVirtualMachines();
-        clearVirtualNetworks();
+        deleteInstanceIps();
+        deleteVirtualMachineInterfaces();
+        deleteVirtualMachines();
+        deleteVirtualNetworks();
         } catch (Exception e) {
             e.printStackTrace();
         }

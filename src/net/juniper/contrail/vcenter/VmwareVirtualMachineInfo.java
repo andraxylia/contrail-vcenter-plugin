@@ -51,16 +51,8 @@ public class VmwareVirtualMachineInfo extends VCenterObject {
     //API server objects
     net.juniper.contrail.api.types.VirtualMachine apiVm;
 
-    public VmwareVirtualMachineInfo(String name, String hostName, 
-            ManagedObjectReference hmor,
-            String vrouterIpAddress, String macAddress,
-            VirtualMachinePowerState powerState) {
-        this.name             = name;
-        this.hostName         = hostName;
-        this.vrouterIpAddress = vrouterIpAddress;
-        this.macAddress       = macAddress;
-        this.powerState       = powerState;
-        this.hmor             = hmor;
+    public VmwareVirtualMachineInfo(String uuid) {
+        this.uuid             = uuid;
 
         vmiInfoMap = new ConcurrentSkipListMap<String, VmwareVirtualMachineInterfaceInfo>();
     }

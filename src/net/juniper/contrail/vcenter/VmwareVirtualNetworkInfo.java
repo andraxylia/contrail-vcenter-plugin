@@ -59,21 +59,8 @@ public class VmwareVirtualNetworkInfo extends VCenterObject {
     // API server
     net.juniper.contrail.api.types.VirtualNetwork apiVn;
 
-    public VmwareVirtualNetworkInfo(String name, short isolatedVlanId,
-            short primaryVlanId, SortedMap<String, VmwareVirtualMachineInfo> vmInfo,
-            String subnetAddress, String subnetMask, String gatewayAddress,
-            boolean ipPoolEnabled, String range, boolean externalIpam) {
-        this.name = name;
-        this.isolatedVlanId = isolatedVlanId;
-        this.primaryVlanId = primaryVlanId;
-        this.vmInfo = vmInfo;
-        this.subnetAddress = subnetAddress;
-        this.subnetMask = subnetMask;
-        this.gatewayAddress = gatewayAddress;
-        this.ipPoolEnabled = ipPoolEnabled;
-        this.range = range;
-        this.externalIpam = externalIpam;
-        this.vmInfo = vmInfo;
+    public VmwareVirtualNetworkInfo(String uuid) {
+        this.uuid = uuid;
     }
 
     public VmwareVirtualNetworkInfo(net.juniper.contrail.api.types.VirtualNetwork vn) {
