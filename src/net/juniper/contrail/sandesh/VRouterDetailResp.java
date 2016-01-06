@@ -39,7 +39,7 @@ public class VRouterDetailResp {
         populateVNetworks(vrouter.getVNetworks());
     }
     
-    private void populateVNetworks(SandeshObjectList<VirtualNetworkInfo> vNetworks) {
+    private void populateVNetworks(SandeshObjectList<VirtualNetworkSandesh> vNetworks) {
         SortedMap<String, VmwareVirtualNetworkInfo> entries = 
                 MainDB.getVNs();
         
@@ -49,7 +49,7 @@ public class VRouterDetailResp {
         
         for (Map.Entry<String, VmwareVirtualNetworkInfo> entry: entries.entrySet()) {
             VmwareVirtualNetworkInfo vmwareVN = entry.getValue(); 
-            VirtualNetworkInfo vn = new VirtualNetworkInfo();
+            VirtualNetworkSandesh vn = new VirtualNetworkSandesh();
             populateVMIs(vn, vmwareVN);
             if (vn.getVMachines().size() > 0) {
                 vn.setName(vmwareVN.getName());
@@ -58,8 +58,8 @@ public class VRouterDetailResp {
         }
     }
     
-    private void populateVMIs(VirtualNetworkInfo vn, VmwareVirtualNetworkInfo vmwareVN) {
-        SandeshObjectList<VirtualMachineInfo> vMachines = vn.getVMachines();
+    private void populateVMIs(VirtualNetworkSandesh vn, VmwareVirtualNetworkInfo vmwareVN) {
+        SandeshObjectList<VirtualMachineSandesh> vMachines = vn.getVMachines();
         
         if (vMachines == null) {
             return;
@@ -78,7 +78,7 @@ public class VRouterDetailResp {
                 continue;
             }
 
-            VirtualMachineInfo vm = new VirtualMachineInfo();
+            VirtualMachineSandesh vm = new VirtualMachineSandesh();
             vm.setName(vmInfo.getName());
             vm.setIpAddr(vmiInfo.getIpAddress());
             vm.setMacAddr(vmiInfo.getMacAddress());
