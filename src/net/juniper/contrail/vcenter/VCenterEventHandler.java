@@ -60,9 +60,8 @@ public class VCenterEventHandler {
             || event instanceof VmCreatedEvent
             || event instanceof VmClonedEvent
             || event instanceof VmCloneEvent
-            || event instanceof VmDeployedEvent) {
-            handleVmCreateEvent();
-        } else if (event instanceof VmReconfiguredEvent
+            || event instanceof VmDeployedEvent
+            || event instanceof VmReconfiguredEvent
             || event instanceof  VmRenamedEvent
             || event instanceof VmMacChangedEvent
             || event instanceof VmMacAssignedEvent
@@ -72,9 +71,8 @@ public class VCenterEventHandler {
             handleVmUpdateEvent();
         } else if (event instanceof VmRemovedEvent) {
             handleVmDeleteEvent();
-        } else if (event instanceof DVPortgroupCreatedEvent) {
-            handleNetworkCreateEvent();
-        } else if (event instanceof DVPortgroupReconfiguredEvent
+        } else if (event instanceof DVPortgroupCreatedEvent
+                || event instanceof DVPortgroupReconfiguredEvent
                 || event instanceof DVPortgroupRenamedEvent) {
             handleNetworkUpdateEvent();
         } else if (event instanceof DVPortgroupDestroyedEvent) {
@@ -82,23 +80,6 @@ public class VCenterEventHandler {
         } else {
             handleEvent(event);
         }
-    }
-
-    private void handleVmCreateEvent() throws Exception {
-        
-        VmwareVirtualMachineInfo newVmInfo = new VmwareVirtualMachineInfo(event, vcenterDB, vncDB);
-        
-        // Ignore virtual machine?
-        if (newVmInfo.ignore()) {
-            s_logger.debug(" Ignoring create vm: " + newVmInfo.getName());
-            return;
-        }
-        
-        newVmInfo.create(vncDB);
-        
-        // add a watch on this Vm guest OS to be notified of guest OS changes,
-        // for instance IP address changes
-        VCenterNotify.watchVm(newVmInfo);
     }
 
     private void handleVmUpdateEvent() throws Exception {
@@ -115,7 +96,10 @@ public class VCenterEventHandler {
         if (oldVmInfo != null) {
             oldVmInfo.update(newVmInfo, vncDB);
         } else {
-            newVmInfo.create(vncDB);           
+            newVmInfo.create(vncDB);
+            // add a watch on this Vm guest OS to be notified of guest OS changes,
+            // for instance IP address changes
+            VCenterNotify.watchVm(newVmInfo);
         }
     }
 
@@ -128,15 +112,6 @@ public class VCenterEventHandler {
 
         VCenterNotify.unwatchVm(vmInfo);  
         vmInfo.delete(vncDB);
-    }
-
-    private void handleNetworkCreateEvent() throws Exception {
-        VmwareVirtualNetworkInfo newVnInfo = 
-                new VmwareVirtualNetworkInfo(event, vcenterDB);
-        
-        newVnInfo.create(vncDB);
-        
-        VCenterNotify.watchVn(newVnInfo);
     }
 
     private void handleNetworkUpdateEvent() throws Exception {
