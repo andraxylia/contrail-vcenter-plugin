@@ -452,7 +452,7 @@ public class VncDB {
         return false;
     }
 
-    public void createVirtualNetwork(VmwareVirtualNetworkInfo vnInfo)
+    public void createVirtualNetwork(VirtualNetworkInfo vnInfo)
             throws IOException {
         if (mode == Mode.VCENTER_AS_COMPUTE) {
             return;
@@ -482,7 +482,7 @@ public class VncDB {
         s_logger.info("Created " + vnInfo);
     }
 
-    public void updateVirtualNetwork(VmwareVirtualNetworkInfo vnInfo)
+    public void updateVirtualNetwork(VirtualNetworkInfo vnInfo)
             throws IOException {
         if (mode == Mode.VCENTER_AS_COMPUTE) {
             return;
@@ -504,7 +504,7 @@ public class VncDB {
         s_logger.info("Updated " + vnInfo);
     }
 
-    private VnSubnetsType getSubnet(VmwareVirtualNetworkInfo vnInfo, VirtualNetwork vn) {
+    private VnSubnetsType getSubnet(VirtualNetworkInfo vnInfo, VirtualNetwork vn) {
         s_logger.info("getSubnet address " + vnInfo.getSubnetAddress() + ", mask " + vnInfo.getSubnetMask());
         if (vnInfo.getSubnetAddress() == null || vnInfo.getSubnetMask() == null) {
             return null;
@@ -555,7 +555,7 @@ public class VncDB {
         return subnet;
     }
 
-    public void deleteVirtualNetwork(VmwareVirtualNetworkInfo vnInfo)
+    public void deleteVirtualNetwork(VirtualNetworkInfo vnInfo)
             throws IOException {
         
         if (mode == Mode.VCENTER_AS_COMPUTE) {
@@ -585,7 +585,7 @@ public class VncDB {
     }
 
 
-    public void createVirtualMachine(VmwareVirtualMachineInfo vmInfo)
+    public void createVirtualMachine(VirtualMachineInfo vmInfo)
             throws IOException {
         if (mode == Mode.VCENTER_AS_COMPUTE) {
             return;
@@ -611,7 +611,7 @@ public class VncDB {
         s_logger.info("Created " + vm);
     }
     
-    public void deleteVirtualMachine(VmwareVirtualMachineInfo vmInfo)
+    public void deleteVirtualMachine(VirtualMachineInfo vmInfo)
             throws IOException {
         if (mode == Mode.VCENTER_AS_COMPUTE) {
             return;
@@ -638,15 +638,15 @@ public class VncDB {
     }
 
     public void createVirtualMachineInterface(
-            VmwareVirtualMachineInterfaceInfo vmiInfo)
+            VirtualMachineInterfaceInfo vmiInfo)
             throws IOException {
 
         if (mode == Mode.VCENTER_AS_COMPUTE) {
             return;
         }
 
-        VmwareVirtualMachineInfo vmInfo = vmiInfo.vmInfo;
-        VmwareVirtualNetworkInfo vnInfo = vmiInfo.vnInfo;
+        VirtualMachineInfo vmInfo = vmiInfo.vmInfo;
+        VirtualNetworkInfo vnInfo = vmiInfo.vnInfo;
         
         VirtualMachine vm = vmInfo.apiVm;
         if (vm == null) {
@@ -713,7 +713,7 @@ public class VncDB {
     }
 
     public void deleteVirtualMachineInterface(
-            VmwareVirtualMachineInterfaceInfo vmiInfo)
+            VirtualMachineInterfaceInfo vmiInfo)
             throws IOException {
         if (mode == Mode.VCENTER_AS_COMPUTE) {
             return;
@@ -788,7 +788,7 @@ public class VncDB {
         }
     }
 
-    public void createInstanceIp(VmwareVirtualMachineInterfaceInfo vmiInfo)
+    public void createInstanceIp(VirtualMachineInterfaceInfo vmiInfo)
             throws IOException {
         if (mode == Mode.VCENTER_AS_COMPUTE) {
             return;
@@ -830,9 +830,9 @@ public class VncDB {
                 instanceIp.getAddress());
     }
 
-    SortedMap<String, VmwareVirtualNetworkInfo> readVirtualNetworks() {
-        SortedMap<String, VmwareVirtualNetworkInfo>  map = 
-                new ConcurrentSkipListMap<String, VmwareVirtualNetworkInfo>();
+    SortedMap<String, VirtualNetworkInfo> readVirtualNetworks() {
+        SortedMap<String, VirtualNetworkInfo>  map = 
+                new ConcurrentSkipListMap<String, VirtualNetworkInfo>();
 
         List<VirtualNetwork> apiObjs = null;
         try {
@@ -858,7 +858,7 @@ public class VncDB {
                     !(vn.getIdPerms().getCreator().equals(VNC_VCENTER_PLUGIN)))) {
                     continue;
                 }
-                VmwareVirtualNetworkInfo vnInfo = new VmwareVirtualNetworkInfo(vn);
+                VirtualNetworkInfo vnInfo = new VirtualNetworkInfo(vn);
                 
                 map.put(vnInfo.getUuid(), vnInfo);
                 
@@ -871,11 +871,11 @@ public class VncDB {
     }
 
  
-    SortedMap<String, VmwareVirtualMachineInfo> readVirtualMachines() {
+    SortedMap<String, VirtualMachineInfo> readVirtualMachines() {
         
         List<VirtualMachine> apiVms = null;
-        SortedMap<String, VmwareVirtualMachineInfo>  map = 
-                new ConcurrentSkipListMap<String, VmwareVirtualMachineInfo>();
+        SortedMap<String, VirtualMachineInfo>  map = 
+                new ConcurrentSkipListMap<String, VirtualMachineInfo>();
         
         try {
             apiVms = (List<VirtualMachine>) 
@@ -898,7 +898,7 @@ public class VncDB {
                     continue;
                 }
                 
-                VmwareVirtualMachineInfo vmInfo = new VmwareVirtualMachineInfo(vm);
+                VirtualMachineInfo vmInfo = new VirtualMachineInfo(vm);
                 readVirtualMachineInterfaces(vmInfo);
 
                 map.put(vmInfo.getUuid(), vmInfo);
@@ -910,7 +910,7 @@ public class VncDB {
         return map;
     }
 
-    public void readVirtualMachineInterfaces(VmwareVirtualMachineInfo vmInfo)
+    public void readVirtualMachineInterfaces(VirtualMachineInfo vmInfo)
         throws IOException {
         
         VirtualMachine vm = vmInfo.apiVm;
@@ -938,9 +938,9 @@ public class VncDB {
             List<ObjectReference<ApiPropertyBase>> vnRefs =
                                             vmInterface.getVirtualNetwork();
             for (ObjectReference<ApiPropertyBase> vnRef : vnRefs) {
-                VmwareVirtualNetworkInfo vnInfo = MainDB.getVnById(vnRef.getUuid());
-                VmwareVirtualMachineInterfaceInfo vmiInfo = 
-                        new VmwareVirtualMachineInterfaceInfo(vmInfo, vnInfo);
+                VirtualNetworkInfo vnInfo = MainDB.getVnById(vnRef.getUuid());
+                VirtualMachineInterfaceInfo vmiInfo = 
+                        new VirtualMachineInterfaceInfo(vmInfo, vnInfo);
                 
                 vmiInfo.apiVmi = vmInterface;
                 vmiInfo.setUuid(vmInterfaceUuid);
@@ -952,7 +952,7 @@ public class VncDB {
         }
     }
 
-    private void readMacAddress(VmwareVirtualMachineInterfaceInfo vmiInfo) 
+    private void readMacAddress(VirtualMachineInterfaceInfo vmiInfo) 
         throws IOException {
         VirtualMachineInterface apiVmi = vmiInfo.apiVmi;
         if (apiVmi == null) {
@@ -969,7 +969,7 @@ public class VncDB {
         }
     }
 
-    private void readInstanceIp(VmwareVirtualMachineInterfaceInfo vmiInfo) 
+    private void readInstanceIp(VirtualMachineInterfaceInfo vmiInfo) 
             throws IOException {
         VirtualMachineInterface apiVmi = 
                 (VirtualMachineInterface) apiConnector.findById(
@@ -998,7 +998,7 @@ public class VncDB {
     }
 
     public VirtualMachineInterface readVirtualMachineInterface(
-            VmwareVirtualMachineInterfaceInfo vmiInfo) throws IOException {
+            VirtualMachineInterfaceInfo vmiInfo) throws IOException {
         if (vmiInfo == null) {
             return null;
         }
@@ -1053,7 +1053,7 @@ public class VncDB {
         }
     }
     
-    public void deleteInstanceIp(VmwareVirtualMachineInterfaceInfo vmiInfo)
+    public void deleteInstanceIp(VirtualMachineInterfaceInfo vmiInfo)
             throws IOException {
         if (mode == Mode.VCENTER_AS_COMPUTE) {
             return;

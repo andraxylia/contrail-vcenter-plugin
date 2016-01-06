@@ -8,9 +8,9 @@ import net.juniper.contrail.vcenter.VCenterDB;
 import net.juniper.contrail.vcenter.VCenterMonitor;
 import net.juniper.contrail.vcenter.VCenterNotify;
 import net.juniper.contrail.vcenter.VRouterNotifier;
-import net.juniper.contrail.vcenter.VmwareVirtualMachineInfo;
-import net.juniper.contrail.vcenter.VmwareVirtualMachineInterfaceInfo;
-import net.juniper.contrail.vcenter.VmwareVirtualNetworkInfo;
+import net.juniper.contrail.vcenter.VirtualMachineInfo;
+import net.juniper.contrail.vcenter.VirtualMachineInterfaceInfo;
+import net.juniper.contrail.vcenter.VirtualNetworkInfo;
 
 public class VRouterDetailResp {    
     private VRouterInfo vrouter;
@@ -40,15 +40,15 @@ public class VRouterDetailResp {
     }
     
     private void populateVNetworks(SandeshObjectList<VirtualNetworkSandesh> vNetworks) {
-        SortedMap<String, VmwareVirtualNetworkInfo> entries = 
+        SortedMap<String, VirtualNetworkInfo> entries = 
                 MainDB.getVNs();
         
         if (entries == null) {
             return;
         }
         
-        for (Map.Entry<String, VmwareVirtualNetworkInfo> entry: entries.entrySet()) {
-            VmwareVirtualNetworkInfo vmwareVN = entry.getValue(); 
+        for (Map.Entry<String, VirtualNetworkInfo> entry: entries.entrySet()) {
+            VirtualNetworkInfo vmwareVN = entry.getValue(); 
             VirtualNetworkSandesh vn = new VirtualNetworkSandesh();
             populateVMIs(vn, vmwareVN);
             if (vn.getVMachines().size() > 0) {
@@ -58,21 +58,21 @@ public class VRouterDetailResp {
         }
     }
     
-    private void populateVMIs(VirtualNetworkSandesh vn, VmwareVirtualNetworkInfo vmwareVN) {
+    private void populateVMIs(VirtualNetworkSandesh vn, VirtualNetworkInfo vmwareVN) {
         SandeshObjectList<VirtualMachineSandesh> vMachines = vn.getVMachines();
         
         if (vMachines == null) {
             return;
         }
-        SortedMap<String, VmwareVirtualMachineInterfaceInfo> map 
+        SortedMap<String, VirtualMachineInterfaceInfo> map 
                     = vmwareVN.getVmiInfo();
         
         if (map == null) {
             return;
         }
-        for (Map.Entry<String, VmwareVirtualMachineInterfaceInfo> entry : map.entrySet()) {
-            VmwareVirtualMachineInterfaceInfo vmiInfo = entry.getValue();
-            VmwareVirtualMachineInfo vmInfo = vmiInfo.getVmInfo();
+        for (Map.Entry<String, VirtualMachineInterfaceInfo> entry : map.entrySet()) {
+            VirtualMachineInterfaceInfo vmiInfo = entry.getValue();
+            VirtualMachineInfo vmInfo = vmiInfo.getVmInfo();
             
             if (!vrouter.getIpAddr().trim().equals(vmInfo.getVrouterIpAddress().trim())) {
                 continue;

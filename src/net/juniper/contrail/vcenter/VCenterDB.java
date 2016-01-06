@@ -87,7 +87,7 @@ public class VCenterDB {
     private volatile IpPoolManager ipPoolManager;
     protected volatile Datacenter contrailDC;
     protected volatile VmwareDistributedVirtualSwitch contrailDVS;
-    private volatile SortedMap<String, VmwareVirtualNetworkInfo> prevVmwareVNInfos;
+    private volatile SortedMap<String, VirtualNetworkInfo> prevVmwareVNInfos;
     private volatile ConcurrentMap<String, Datacenter> datacenters;
     private volatile ConcurrentMap<String, VmwareDistributedVirtualSwitch> dvswitches;
 
@@ -912,11 +912,11 @@ public class VCenterDB {
         return vm;
     }
       
-    public SortedMap<String, VmwareVirtualNetworkInfo> readVirtualNetworks() 
+    public SortedMap<String, VirtualNetworkInfo> readVirtualNetworks() 
             throws Exception {
 
-        SortedMap<String, VmwareVirtualNetworkInfo> map =
-                new ConcurrentSkipListMap<String, VmwareVirtualNetworkInfo>();
+        SortedMap<String, VirtualNetworkInfo> map =
+                new ConcurrentSkipListMap<String, VirtualNetworkInfo>();
         
         if (contrailDVS == null) {
             s_logger.error("dvSwitch: " + contrailDvSwitchName +
@@ -981,8 +981,8 @@ public class VCenterDB {
             if (doIgnoreVirtualNetwork(portSetting)) {
                 continue;
             }
-            VmwareVirtualNetworkInfo vnInfo = 
-                    new VmwareVirtualNetworkInfo(
+            VirtualNetworkInfo vnInfo = 
+                    new VirtualNetworkInfo(
                             this, dvPgs[i], pTables[i], contrailDC, contrailDataCenterName, 
                             contrailDVS, contrailDvSwitchName,
                             ipPools, pvlanMapArray);
@@ -994,7 +994,7 @@ public class VCenterDB {
         return map;
     }
 
-    private void readVirtualMachines(SortedMap<String, VmwareVirtualMachineInfo> map,
+    private void readVirtualMachines(SortedMap<String, VirtualMachineInfo> map,
             ManagedEntity me, 
             Datacenter dc, String dcName) 
                 throws Exception {
@@ -1028,7 +1028,7 @@ public class VCenterDB {
                 });
         
         for (int i=0; i < vms.length; i++) {
-            VmwareVirtualMachineInfo vmInfo = new VmwareVirtualMachineInfo(this,
+            VirtualMachineInfo vmInfo = new VirtualMachineInfo(this,
                     dc, dcName,
                     (VirtualMachine)vms[i], pTables[i],
                     host, vrouterIpAddress);
@@ -1045,11 +1045,11 @@ public class VCenterDB {
         }
     }
 
-    SortedMap<String, VmwareVirtualMachineInfo> readVirtualMachines() 
+    SortedMap<String, VirtualMachineInfo> readVirtualMachines() 
             throws IOException, Exception {
         
-        SortedMap<String, VmwareVirtualMachineInfo> map =
-                new ConcurrentSkipListMap<String, VmwareVirtualMachineInfo>();
+        SortedMap<String, VirtualMachineInfo> map =
+                new ConcurrentSkipListMap<String, VirtualMachineInfo>();
         
         /* the method below can be called in a loop to read multiple  
          * datacenters and read VMs per hosts     
@@ -1083,14 +1083,14 @@ public class VCenterDB {
         return map;
     }
     
-    public void readVirtualMachineInterfaces(VmwareVirtualMachineInfo vmInfo) 
+    public void readVirtualMachineInterfaces(VirtualMachineInfo vmInfo) 
             throws IOException, Exception {
         VirtualMachine vm = vmInfo.vm;
         Network[] nets = vm.getNetworks();
         
         for (Network net: nets) {
             
-            VmwareVirtualNetworkInfo vnInfo = null;
+            VirtualNetworkInfo vnInfo = null;
             switch (mode) {
             case VCENTER_ONLY:
                 String netName = net.getName();
@@ -1116,8 +1116,8 @@ public class VCenterDB {
                 throw new Exception("Unhandled mode " + mode.name());
             }
 
-            VmwareVirtualMachineInterfaceInfo vmiInfo = 
-                    new VmwareVirtualMachineInterfaceInfo(vmInfo, vnInfo);
+            VirtualMachineInterfaceInfo vmiInfo = 
+                    new VirtualMachineInterfaceInfo(vmInfo, vnInfo);
 
             vmiInfo.setMacAddress(getVirtualMachineMacAddress(vm.getConfig(), vnInfo.getDpg()));
             

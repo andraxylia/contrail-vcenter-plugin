@@ -26,7 +26,7 @@ public class VRouterNotifier {
         return vrouterApiMap;
     }
     
-    public static void created(VmwareVirtualMachineInterfaceInfo vmiInfo) {
+    public static void created(VirtualMachineInterfaceInfo vmiInfo) {
         if (vmiInfo == null) {       
             s_logger.error("Null vmiInfo argument, cannot perform addPort");
             return;
@@ -42,8 +42,8 @@ public class VRouterNotifier {
         }
         String vrouterIpAddress = vmiInfo.getVmInfo().getVrouterIpAddress();
         String ipAddress = vmiInfo.getIpAddress();
-        VmwareVirtualMachineInfo vmInfo = vmiInfo.vmInfo;
-        VmwareVirtualNetworkInfo vnInfo = vmiInfo.vnInfo;
+        VirtualMachineInfo vmInfo = vmiInfo.vmInfo;
+        VirtualNetworkInfo vnInfo = vmiInfo.vnInfo;
         
         if (vrouterIpAddress == null) {
             s_logger.error(vmiInfo +
@@ -89,7 +89,7 @@ public class VRouterNotifier {
         }
     }
 
-    public static void deleted(VmwareVirtualMachineInterfaceInfo vmiInfo) {
+    public static void deleted(VirtualMachineInterfaceInfo vmiInfo) {
         if (vmiInfo == null) {       
             s_logger.error("Null vmiInfo argument, cannot perform deletePort");
             return;
@@ -105,8 +105,8 @@ public class VRouterNotifier {
         }
         String vrouterIpAddress = vmiInfo.getVmInfo().getVrouterIpAddress();
         String ipAddress = vmiInfo.getIpAddress();
-        VmwareVirtualMachineInfo vmInfo = vmiInfo.vmInfo;
-        VmwareVirtualNetworkInfo vnInfo = vmiInfo.vnInfo;
+        VirtualMachineInfo vmInfo = vmiInfo.vmInfo;
+        VirtualNetworkInfo vnInfo = vmiInfo.vnInfo;
         
         if (vrouterIpAddress == null) {
             s_logger.error(vmiInfo +

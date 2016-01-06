@@ -94,10 +94,10 @@ public class VCenterNotify implements Runnable
     private final static String[] ipPoolProps = { "summary.ipPoolId" };
     private static PropertyFilter propFilter;
     private static PropertyCollector propColl;
-    private static Map<String, VmwareVirtualMachineInfo> watchedVMs 
-                = new HashMap<String, VmwareVirtualMachineInfo>();
-    private static Map<String, VmwareVirtualNetworkInfo> watchedVNs 
-                = new HashMap<String, VmwareVirtualNetworkInfo>();
+    private static Map<String, VirtualMachineInfo> watchedVMs 
+                = new HashMap<String, VirtualMachineInfo>();
+    private static Map<String, VirtualNetworkInfo> watchedVNs 
+                = new HashMap<String, VirtualNetworkInfo>();
     private static Map<ManagedObject, PropertyFilter> watchedFilters
                 = new HashMap<ManagedObject, PropertyFilter>();
     
@@ -208,7 +208,7 @@ public class VCenterNotify implements Runnable
         watchedVNs.clear();
     }
 
-    public static void watchVm(VmwareVirtualMachineInfo vmInfo) {
+    public static void watchVm(VirtualMachineInfo vmInfo) {
         if (VCenterMonitor.mode == Mode.VCENTER_AS_COMPUTE
             || watchedVMs.containsKey(vmInfo.vm.getMOR().getVal())) {
             return;
@@ -217,7 +217,7 @@ public class VCenterNotify implements Runnable
         watchManagedObject(vmInfo.vm, guestProps);
     }
 
-    public static void unwatchVm(VmwareVirtualMachineInfo vmInfo) {
+    public static void unwatchVm(VirtualMachineInfo vmInfo) {
         if (VCenterMonitor.mode == Mode.VCENTER_AS_COMPUTE
             || !watchedVMs.containsKey(vmInfo.vm.getMOR().getVal())) {
             return;
@@ -226,7 +226,7 @@ public class VCenterNotify implements Runnable
         unwatchManagedObject(vmInfo.vm);
     }
 
-    public static void watchVn(VmwareVirtualNetworkInfo vnInfo) {
+    public static void watchVn(VirtualNetworkInfo vnInfo) {
         if (VCenterMonitor.mode == Mode.VCENTER_AS_COMPUTE
                 || watchedVNs.containsKey(vnInfo.dpg.getMOR().getVal())) {
             return;
@@ -235,7 +235,7 @@ public class VCenterNotify implements Runnable
         watchManagedObject(vnInfo.dpg, ipPoolProps);
     }
 
-    public static void unwatchVn(VmwareVirtualNetworkInfo vnInfo) {
+    public static void unwatchVn(VirtualNetworkInfo vnInfo) {
         if (VCenterMonitor.mode == Mode.VCENTER_AS_COMPUTE
             || !watchedVNs.containsKey(vnInfo.dpg.getMOR().getVal())) {
             return;
@@ -392,7 +392,7 @@ public class VCenterNotify implements Runnable
                     Integer newPoolId = (Integer)value;
                     ManagedObjectReference mor = oUpdate.getObj();
                     if (watchedVNs.containsKey(mor.getVal())) {
-                        VmwareVirtualNetworkInfo vnInfo = watchedVNs.get(mor.getVal());
+                        VirtualNetworkInfo vnInfo = watchedVNs.get(mor.getVal());
                         Integer oldPoolId = vnInfo.getIpPoolId();
                         if ((oldPoolId == null && newPoolId == null)
                                 || (oldPoolId != null && newPoolId != null 
@@ -468,7 +468,7 @@ public class VCenterNotify implements Runnable
         if (toolsRunningStatus != null || nics != null) {
             ManagedObjectReference mor = oUpdate.getObj();
             if (watchedVMs.containsKey(mor.getVal())) {
-                VmwareVirtualMachineInfo vmInfo = watchedVMs.get(mor.getVal());
+                VirtualMachineInfo vmInfo = watchedVMs.get(mor.getVal());
                 if (toolsRunningStatus != null) {
                     vmInfo.setToolsRunningStatus(toolsRunningStatus);
                 }

@@ -18,10 +18,10 @@ import com.vmware.vim25.VirtualMachineToolsRunningStatus;
 
 import net.juniper.contrail.api.types.InstanceIp;
 
-public class VmwareVirtualMachineInterfaceInfo extends VCenterObject {
+public class VirtualMachineInterfaceInfo extends VCenterObject {
     private String uuid;
-    VmwareVirtualMachineInfo vmInfo;
-    VmwareVirtualNetworkInfo vnInfo;
+    VirtualMachineInfo vmInfo;
+    VirtualNetworkInfo vnInfo;
     private String ipAddress;
     private String macAddress;
     private boolean up;
@@ -30,8 +30,8 @@ public class VmwareVirtualMachineInterfaceInfo extends VCenterObject {
     net.juniper.contrail.api.types.VirtualMachineInterface apiVmi;
     net.juniper.contrail.api.types.InstanceIp apiInstanceIp;
 
-    VmwareVirtualMachineInterfaceInfo(VmwareVirtualMachineInfo vmInfo,
-            VmwareVirtualNetworkInfo vnInfo) {
+    VirtualMachineInterfaceInfo(VirtualMachineInfo vmInfo,
+            VirtualNetworkInfo vnInfo) {
         this.vmInfo = vmInfo;
         this.vnInfo = vnInfo;
     }
@@ -44,19 +44,19 @@ public class VmwareVirtualMachineInterfaceInfo extends VCenterObject {
         this.uuid = uuid;
     }
 
-    public VmwareVirtualMachineInfo getVmInfo() {
+    public VirtualMachineInfo getVmInfo() {
         return vmInfo;
     }
 
-    public void setVmInfo(VmwareVirtualMachineInfo vmInfo) {
+    public void setVmInfo(VirtualMachineInfo vmInfo) {
         this.vmInfo = vmInfo;
     }
 
-    public VmwareVirtualNetworkInfo getVnInfo() {
+    public VirtualNetworkInfo getVnInfo() {
         return vnInfo;
     }
 
-    public void setVnInfo(VmwareVirtualNetworkInfo vnInfo) {
+    public void setVnInfo(VirtualNetworkInfo vnInfo) {
         this.vnInfo = vnInfo;
     }
 
@@ -119,7 +119,7 @@ public class VmwareVirtualMachineInterfaceInfo extends VCenterObject {
         }        
     }
 
-    public boolean equals(VmwareVirtualMachineInterfaceInfo vmi) {
+    public boolean equals(VirtualMachineInterfaceInfo vmi) {
         if (vmi == null) {
             return false;
         }
@@ -176,7 +176,7 @@ public class VmwareVirtualMachineInterfaceInfo extends VCenterObject {
     void update(VCenterObject obj,
             VncDB vncDB) throws Exception {
         
-        VmwareVirtualMachineInterfaceInfo newVmiInfo = (VmwareVirtualMachineInterfaceInfo)obj;
+        VirtualMachineInterfaceInfo newVmiInfo = (VirtualMachineInterfaceInfo)obj;
                
         // change of Ip Address, MAC address or network triggers a delete / recreate
         if ((newVmiInfo.ipAddress != null && !newVmiInfo.ipAddress.equals(ipAddress))
@@ -224,7 +224,7 @@ public class VmwareVirtualMachineInterfaceInfo extends VCenterObject {
     void sync(VCenterObject obj,
             VncDB vncDB) throws Exception {
         
-        VmwareVirtualMachineInterfaceInfo oldVmiInfo = (VmwareVirtualMachineInterfaceInfo)obj;
+        VirtualMachineInterfaceInfo oldVmiInfo = (VirtualMachineInterfaceInfo)obj;
         
         if (apiVmi == null && oldVmiInfo.apiVmi != null) {
             apiVmi = oldVmiInfo.apiVmi;

@@ -83,7 +83,7 @@ public class VCenterEventHandler {
     }
 
     private void handleVmUpdateEvent() throws Exception {
-        VmwareVirtualMachineInfo newVmInfo = new VmwareVirtualMachineInfo(event, vcenterDB, vncDB);
+        VirtualMachineInfo newVmInfo = new VirtualMachineInfo(event, vcenterDB, vncDB);
          
         // Ignore virtual machine?
         if (newVmInfo.ignore()) {
@@ -91,7 +91,7 @@ public class VCenterEventHandler {
             return;
         }
         
-        VmwareVirtualMachineInfo oldVmInfo = MainDB.getVmById(newVmInfo.getUuid());
+        VirtualMachineInfo oldVmInfo = MainDB.getVmById(newVmInfo.getUuid());
         
         if (oldVmInfo != null) {
             oldVmInfo.update(newVmInfo, vncDB);
@@ -104,7 +104,7 @@ public class VCenterEventHandler {
     }
 
     private void handleVmDeleteEvent() throws Exception {
-        VmwareVirtualMachineInfo vmInfo = MainDB.getVmByName(event.getVm().getName());
+        VirtualMachineInfo vmInfo = MainDB.getVmByName(event.getVm().getName());
         
         if (vmInfo == null) {
             return;
@@ -115,10 +115,10 @@ public class VCenterEventHandler {
     }
 
     private void handleNetworkUpdateEvent() throws Exception {
-        VmwareVirtualNetworkInfo newVnInfo = 
-                new VmwareVirtualNetworkInfo(event, vcenterDB);
+        VirtualNetworkInfo newVnInfo = 
+                new VirtualNetworkInfo(event, vcenterDB);
         
-        VmwareVirtualNetworkInfo oldVnInfo = MainDB.getVnByName(newVnInfo.getName());
+        VirtualNetworkInfo oldVnInfo = MainDB.getVnByName(newVnInfo.getName());
         
         if (oldVnInfo != null) {
             oldVnInfo.update(newVnInfo, vncDB);
@@ -130,7 +130,7 @@ public class VCenterEventHandler {
 
     private void handleNetworkDeleteEvent() throws Exception {
         
-        VmwareVirtualNetworkInfo vnInfo = MainDB.getVnByName(event.getNet().getName());
+        VirtualNetworkInfo vnInfo = MainDB.getVnByName(event.getNet().getName());
         
         if (vnInfo == null) {
             return;

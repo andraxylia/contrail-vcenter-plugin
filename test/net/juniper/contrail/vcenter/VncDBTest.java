@@ -109,7 +109,7 @@ public class VncDBTest extends TestCase {
         String range          = "192.18.2.2#230";
         boolean externalIpam  = false;
 
-        VmwareVirtualNetworkInfo vnInfo = new VmwareVirtualNetworkInfo(vnUuid);
+        VirtualNetworkInfo vnInfo = new VirtualNetworkInfo(vnUuid);
         vnInfo.setName(vnName);
         vnInfo.setSubnetAddress(subnetAddr);
         vnInfo.setSubnetMask(subnetMask);
@@ -129,7 +129,7 @@ public class VncDBTest extends TestCase {
         assertEquals(vn1.getUuid(), vnUuid);
         assertEquals(vn1.getName(), vnName);
 
-        vnInfo = new VmwareVirtualNetworkInfo(vn1);
+        vnInfo = new VirtualNetworkInfo(vn1);
         // Delete virtual-network from api-server
         vncDB.deleteVirtualNetwork(vnInfo);
 
@@ -151,7 +151,7 @@ public class VncDBTest extends TestCase {
         String range          = "192.18.2.2#230";
         boolean externalIpam  = false;
 
-        VmwareVirtualNetworkInfo vnInfo = new VmwareVirtualNetworkInfo(vnUuid);
+        VirtualNetworkInfo vnInfo = new VirtualNetworkInfo(vnUuid);
         vnInfo.setName(vnName);
         vnInfo.setSubnetAddress(subnetAddr);
         vnInfo.setSubnetMask(subnetMask);
@@ -178,7 +178,7 @@ public class VncDBTest extends TestCase {
         hmor.setVal("host-19209");
         hmor.setType("HostSystem");
         
-        VmwareVirtualMachineInfo vmInfo = new VmwareVirtualMachineInfo(vmUuid);
+        VirtualMachineInfo vmInfo = new VirtualMachineInfo(vmUuid);
         vmInfo.setName(vmName);
         vmInfo.setHostName(hostName);
         vmInfo.setHmor(hmor);
@@ -194,8 +194,8 @@ public class VncDBTest extends TestCase {
         assertEquals(vm.getDisplayName(), vrouterIpAddress);
         assertEquals(vm.getIdPerms(), vncDB.getVCenterIdPerms());
 
-        VmwareVirtualMachineInterfaceInfo vmiInfo = 
-                new VmwareVirtualMachineInterfaceInfo(vmInfo, vnInfo);
+        VirtualMachineInterfaceInfo vmiInfo = 
+                new VirtualMachineInterfaceInfo(vmInfo, vnInfo);
         String macAddress        = "00:11:22:33:44:55";
         vmiInfo.setMacAddress(macAddress);
         vncDB.createVirtualMachineInterface(vmiInfo);
@@ -307,7 +307,7 @@ public class VncDBTest extends TestCase {
         String range          = "192.18.2.2#230";
         boolean externalIpam  = false;
 
-        VmwareVirtualNetworkInfo vnInfo = new VmwareVirtualNetworkInfo(vnUuid);
+        VirtualNetworkInfo vnInfo = new VirtualNetworkInfo(vnUuid);
         vnInfo.setName(vnName);
         vnInfo.setSubnetAddress(subnetAddr);
         vnInfo.setSubnetMask(subnetMask);
@@ -336,7 +336,7 @@ public class VncDBTest extends TestCase {
         hmor.setVal("host-19209");
         hmor.setType("HostSystem");
         
-        VmwareVirtualMachineInfo vmInfo = new VmwareVirtualMachineInfo(vmUuid);
+        VirtualMachineInfo vmInfo = new VirtualMachineInfo(vmUuid);
         vmInfo.setName(vmName);
         vmInfo.setHostName(hostName);
         vmInfo.setHmor(hmor);
@@ -352,8 +352,8 @@ public class VncDBTest extends TestCase {
         assertEquals(vm.getDisplayName(), vrouterIpAddress);
         assertEquals(vm.getIdPerms(), vncDB.getVCenterIdPerms());
 
-        VmwareVirtualMachineInterfaceInfo vmiInfo = 
-                new VmwareVirtualMachineInterfaceInfo(vmInfo, vnInfo);
+        VirtualMachineInterfaceInfo vmiInfo = 
+                new VirtualMachineInterfaceInfo(vmInfo, vnInfo);
         String macAddress        = "00:11:22:33:44:55";
         vmiInfo.setMacAddress(macAddress);
         vncDB.createVirtualMachineInterface(vmiInfo);
@@ -461,7 +461,7 @@ public class VncDBTest extends TestCase {
         String range          = "192.18.3.2#230";
         boolean externalIpam  = false;
 
-        VmwareVirtualNetworkInfo vnInfo = new VmwareVirtualNetworkInfo(vnUuid);
+        VirtualNetworkInfo vnInfo = new VirtualNetworkInfo(vnUuid);
         vnInfo.setName(vnName);
         vnInfo.setSubnetAddress(subnetAddr);
         vnInfo.setSubnetMask(subnetMask);
@@ -490,7 +490,7 @@ public class VncDBTest extends TestCase {
         hmor.setVal("host-19209");
         hmor.setType("HostSystem");
         
-        VmwareVirtualMachineInfo vmInfo = new VmwareVirtualMachineInfo(vmUuid);
+        VirtualMachineInfo vmInfo = new VirtualMachineInfo(vmUuid);
         vmInfo.setName(vmName);
         vmInfo.setHostName(hostName);
         vmInfo.setHmor(hmor);
@@ -506,8 +506,8 @@ public class VncDBTest extends TestCase {
         assertEquals(vm.getDisplayName(), vrouterIpAddress);
         assertEquals(vm.getIdPerms(), vncDB.getVCenterIdPerms());
 
-        VmwareVirtualMachineInterfaceInfo vmiInfo = 
-                new VmwareVirtualMachineInterfaceInfo(vmInfo, vnInfo);
+        VirtualMachineInterfaceInfo vmiInfo = 
+                new VirtualMachineInterfaceInfo(vmInfo, vnInfo);
         String macAddress        = "00:11:28:34:44:55";
         vmiInfo.setMacAddress(macAddress);
         vncDB.createVirtualMachineInterface(vmiInfo);

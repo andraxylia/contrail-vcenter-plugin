@@ -16,10 +16,10 @@ import net.juniper.contrail.api.types.VirtualMachine;
 import net.juniper.contrail.api.types.VirtualNetwork;
 
 public class MainDB {
-    private static volatile SortedMap<String, VmwareVirtualNetworkInfo> vmwareVNs =
-            new ConcurrentSkipListMap<String, VmwareVirtualNetworkInfo>();
-    private static volatile SortedMap<String, VmwareVirtualMachineInfo> vmwareVMs =
-            new ConcurrentSkipListMap<String, VmwareVirtualMachineInfo>();
+    private static volatile SortedMap<String, VirtualNetworkInfo> vmwareVNs =
+            new ConcurrentSkipListMap<String, VirtualNetworkInfo>();
+    private static volatile SortedMap<String, VirtualMachineInfo> vmwareVMs =
+            new ConcurrentSkipListMap<String, VirtualMachineInfo>();
     
     private static volatile VncDB vncDB;
     private static volatile VCenterDB vcenterDB;
@@ -27,16 +27,16 @@ public class MainDB {
     private final static Logger s_logger =
             Logger.getLogger(MainDB.class);
     
-    public static SortedMap<String, VmwareVirtualNetworkInfo> getVNs() {
+    public static SortedMap<String, VirtualNetworkInfo> getVNs() {
         return vmwareVNs;
     }
 
-    public static SortedMap<String, VmwareVirtualMachineInfo> getVMs() {
+    public static SortedMap<String, VirtualMachineInfo> getVMs() {
         return vmwareVMs;
     }
 
-    public static VmwareVirtualNetworkInfo getVnByName(String name) {
-        for (VmwareVirtualNetworkInfo vnInfo: vmwareVNs.values()) {
+    public static VirtualNetworkInfo getVnByName(String name) {
+        for (VirtualNetworkInfo vnInfo: vmwareVNs.values()) {
             if (vnInfo.getName().equals(name)) {
                 return vnInfo;
             }
@@ -44,8 +44,8 @@ public class MainDB {
         return null;
     }
 
-    public static VmwareVirtualMachineInfo getVmByName(String name) {
-        for (VmwareVirtualMachineInfo vmInfo: vmwareVMs.values()) {
+    public static VirtualMachineInfo getVmByName(String name) {
+        for (VirtualMachineInfo vmInfo: vmwareVMs.values()) {
             if (vmInfo.getName().equals(name)) {
                 return vmInfo;
             }
@@ -53,53 +53,53 @@ public class MainDB {
         return null;
     }
 
-    public static VmwareVirtualNetworkInfo getVnById(String uuid) {
+    public static VirtualNetworkInfo getVnById(String uuid) {
         if (vmwareVNs.containsKey(uuid)) {
             return vmwareVNs.get(uuid);
         }
         return null;
     }
     
-    public static void created(VmwareVirtualNetworkInfo vnInfo) {
+    public static void created(VirtualNetworkInfo vnInfo) {
         vmwareVNs.put(vnInfo.getUuid(), vnInfo);
     }
     
-    public static void updated(VmwareVirtualNetworkInfo vnInfo) {
+    public static void updated(VirtualNetworkInfo vnInfo) {
         if (!vmwareVNs.containsKey(vnInfo.getUuid())) {
             vmwareVNs.put(vnInfo.getUuid(), vnInfo);
         }
     }
     
-    public static void deleted(VmwareVirtualNetworkInfo vnInfo) {
+    public static void deleted(VirtualNetworkInfo vnInfo) {
         if (vmwareVNs.containsKey(vnInfo.getUuid())) {
             vmwareVNs.remove(vnInfo.getUuid());
         }
     }
     
-    public static void deleteVirtualNetwork(VmwareVirtualNetworkInfo vnInfo) {
+    public static void deleteVirtualNetwork(VirtualNetworkInfo vnInfo) {
         if (vmwareVNs.containsKey(vnInfo.getUuid())) {
             vmwareVNs.remove(vnInfo.getUuid());
         }
     }
 
-    public static VmwareVirtualMachineInfo getVmById(String uuid) {
+    public static VirtualMachineInfo getVmById(String uuid) {
         if (vmwareVMs.containsKey(uuid)) {
             return vmwareVMs.get(uuid);
         }
         return null;
     }
 
-    public static void created(VmwareVirtualMachineInfo vmInfo) {
+    public static void created(VirtualMachineInfo vmInfo) {
         vmwareVMs.put(vmInfo.getUuid(), vmInfo);
     }
     
-    public static void updated(VmwareVirtualMachineInfo vmInfo) {
+    public static void updated(VirtualMachineInfo vmInfo) {
         if (!vmwareVMs.containsKey(vmInfo.getUuid())) {
             vmwareVMs.put(vmInfo.getUuid(), vmInfo);
         }
     }
     
-    public static void deleted(VmwareVirtualMachineInfo vmInfo) {
+    public static void deleted(VirtualMachineInfo vmInfo) {
         if (vmwareVMs.containsKey(vmInfo.getUuid())) {
             vmwareVNs.remove(vmInfo.getUuid());
         }
@@ -211,11 +211,11 @@ public class MainDB {
         vmwareVMs.clear();
         
         vmwareVNs = vcenterDB.readVirtualNetworks();
-        SortedMap<String, VmwareVirtualNetworkInfo> oldVNs = vncDB.readVirtualNetworks();
+        SortedMap<String, VirtualNetworkInfo> oldVNs = vncDB.readVirtualNetworks();
         sync(oldVNs, vmwareVNs);
         
         vmwareVMs = vcenterDB.readVirtualMachines();
-        SortedMap<String, VmwareVirtualMachineInfo> oldVMs = vncDB.readVirtualMachines();
+        SortedMap<String, VirtualMachineInfo> oldVMs = vncDB.readVirtualMachines();
         sync(oldVMs, vmwareVMs);
          
         printInfo();
@@ -225,12 +225,12 @@ public class MainDB {
 
     private static void printInfo() {
         System.out.println("\nNetworks after sync:");
-        for (VmwareVirtualNetworkInfo vnInfo: vmwareVNs.values()) {
+        for (VirtualNetworkInfo vnInfo: vmwareVNs.values()) {
             System.out.println(vnInfo.toStringBuffer());
         }
         
         System.out.println("\nVirtual Machines after sync:");
-        for (VmwareVirtualMachineInfo vmInfo: vmwareVMs.values()) {
+        for (VirtualMachineInfo vmInfo: vmwareVMs.values()) {
             System.out.println(vmInfo.toStringBuffer());
         }
         System.out.println("\n");

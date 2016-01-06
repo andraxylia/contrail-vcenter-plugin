@@ -32,13 +32,13 @@ import com.vmware.vim25.mo.util.PropertyCollectorUtil;
 
 import net.juniper.contrail.api.types.VirtualNetwork;
 
-public class VmwareVirtualNetworkInfo extends VCenterObject {
+public class VirtualNetworkInfo extends VCenterObject {
     private String uuid; // required attribute, key for this object
     private String name;
     private short isolatedVlanId;
     private short primaryVlanId;
-    private SortedMap<String, VmwareVirtualMachineInfo> vmInfo;
-    private SortedMap<String, VmwareVirtualMachineInterfaceInfo> vmiInfoMap; // key is MAC address
+    private SortedMap<String, VirtualMachineInfo> vmInfo;
+    private SortedMap<String, VirtualMachineInterfaceInfo> vmiInfoMap; // key is MAC address
     private Integer ipPoolId;
     private String subnetAddress;
     private String subnetMask;
@@ -59,22 +59,22 @@ public class VmwareVirtualNetworkInfo extends VCenterObject {
     // API server
     net.juniper.contrail.api.types.VirtualNetwork apiVn;
 
-    public VmwareVirtualNetworkInfo(String uuid) {
+    public VirtualNetworkInfo(String uuid) {
         this.uuid = uuid;
     }
 
-    public VmwareVirtualNetworkInfo(net.juniper.contrail.api.types.VirtualNetwork vn) {
+    public VirtualNetworkInfo(net.juniper.contrail.api.types.VirtualNetwork vn) {
         this.apiVn = vn;
         this.uuid = vn.getUuid();
         name = vn.getName();
-        this.vmInfo = new ConcurrentSkipListMap<String, VmwareVirtualMachineInfo>();
-        this.vmiInfoMap = new ConcurrentSkipListMap<String, VmwareVirtualMachineInterfaceInfo>();
+        this.vmInfo = new ConcurrentSkipListMap<String, VirtualMachineInfo>();
+        this.vmiInfoMap = new ConcurrentSkipListMap<String, VirtualMachineInterfaceInfo>();
         this.externalIpam = vn.getExternalIpam();
     }
     
-    public VmwareVirtualNetworkInfo(Event event,  VCenterDB vcenterDB) throws Exception {
-        vmInfo = new ConcurrentSkipListMap<String, VmwareVirtualMachineInfo>();
-        vmiInfoMap = new ConcurrentSkipListMap<String, VmwareVirtualMachineInterfaceInfo>();
+    public VirtualNetworkInfo(Event event,  VCenterDB vcenterDB) throws Exception {
+        vmInfo = new ConcurrentSkipListMap<String, VirtualMachineInfo>();
+        vmiInfoMap = new ConcurrentSkipListMap<String, VirtualMachineInterfaceInfo>();
         
         if (event.getDatacenter() != null) {
             dcName = event.getDatacenter().getName();
@@ -115,7 +115,7 @@ public class VmwareVirtualNetworkInfo extends VCenterObject {
         populateInfo(vcenterDB, pTables[0]);
     }
 
-    public VmwareVirtualNetworkInfo(VCenterDB vcenterDB,
+    public VirtualNetworkInfo(VCenterDB vcenterDB,
             DistributedVirtualPortgroup dpg, Hashtable pTable,
             com.vmware.vim25.mo.Datacenter dc, String dcName,
             com.vmware.vim25.mo.VmwareDistributedVirtualSwitch dvs,
@@ -129,8 +129,8 @@ public class VmwareVirtualNetworkInfo extends VCenterObject {
                 || pvlanMapArray == null) {
             throw new IllegalArgumentException();
         }
-        vmInfo = new ConcurrentSkipListMap<String, VmwareVirtualMachineInfo>();
-        vmiInfoMap = new ConcurrentSkipListMap<String, VmwareVirtualMachineInterfaceInfo>();
+        vmInfo = new ConcurrentSkipListMap<String, VirtualMachineInfo>();
+        vmiInfoMap = new ConcurrentSkipListMap<String, VirtualMachineInterfaceInfo>();
         this.dc = dc;
         this.dcName = dcName;
         this.dpg = dpg;
@@ -142,7 +142,7 @@ public class VmwareVirtualNetworkInfo extends VCenterObject {
     
     void populateInfo(VCenterDB vcenterDB, Hashtable pTable) throws Exception {
         
-        vmInfo = new ConcurrentSkipListMap<String, VmwareVirtualMachineInfo>();
+        vmInfo = new ConcurrentSkipListMap<String, VirtualMachineInfo>();
         
         // Extract dvPg configuration info and port setting
         portSetting = (DVPortSetting) pTable.get("config.defaultPortConfig");
@@ -262,15 +262,15 @@ public class VmwareVirtualNetworkInfo extends VCenterObject {
         this.range = _range;
     }
 
-    public SortedMap<String, VmwareVirtualMachineInterfaceInfo> getVmiInfo() {
+    public SortedMap<String, VirtualMachineInterfaceInfo> getVmiInfo() {
         return vmiInfoMap;
     }
 
-    public SortedMap<String, VmwareVirtualMachineInfo> getVmInfo() {
+    public SortedMap<String, VirtualMachineInfo> getVmInfo() {
         return vmInfo;
     }
 
-    public void setVmInfo(SortedMap<String, VmwareVirtualMachineInfo> vmInfo) {
+    public void setVmInfo(SortedMap<String, VirtualMachineInfo> vmInfo) {
         this.vmInfo = vmInfo;
     }
 
@@ -386,23 +386,23 @@ public class VmwareVirtualNetworkInfo extends VCenterObject {
         this.dpg = dpg;
     }
     
-    public void created(VmwareVirtualMachineInterfaceInfo vmiInfo) {
+    public void created(VirtualMachineInterfaceInfo vmiInfo) {
         vmiInfoMap.put(vmiInfo.getMacAddress(), vmiInfo);
     }
     
-    public void updated(VmwareVirtualMachineInterfaceInfo vmiInfo) {
+    public void updated(VirtualMachineInterfaceInfo vmiInfo) {
         if (!vmiInfoMap.containsKey(vmiInfo.getMacAddress())) {
             vmiInfoMap.put(vmiInfo.getMacAddress(), vmiInfo);
         }
     }
 
-    public void deleted(VmwareVirtualMachineInterfaceInfo vmiInfo) {
+    public void deleted(VirtualMachineInterfaceInfo vmiInfo) {
         if (vmiInfoMap.containsKey(vmiInfo.getMacAddress())) {
             vmiInfoMap.remove(vmiInfo.getMacAddress());
         }
     }
 
-    public boolean equals(VmwareVirtualNetworkInfo vn) {
+    public boolean equals(VirtualNetworkInfo vn) {
         if (vn == null) {
             return false;
         }
@@ -447,9 +447,9 @@ public class VmwareVirtualNetworkInfo extends VCenterObject {
         StringBuffer s = new StringBuffer(
                 "VN <" + name + ", " + uuid + ">\n\n");
         
-        for (Map.Entry<String, VmwareVirtualMachineInterfaceInfo> entry: 
+        for (Map.Entry<String, VirtualMachineInterfaceInfo> entry: 
             vmiInfoMap.entrySet()) {
-            VmwareVirtualMachineInterfaceInfo vmiInfo = entry.getValue();
+            VirtualMachineInterfaceInfo vmiInfo = entry.getValue();
             s.append("\t")
              .append(vmiInfo).append("\n");
         }
@@ -494,7 +494,7 @@ public class VmwareVirtualNetworkInfo extends VCenterObject {
             return;
         }
         
-        VmwareVirtualNetworkInfo newVnInfo = (VmwareVirtualNetworkInfo)obj;
+        VirtualNetworkInfo newVnInfo = (VirtualNetworkInfo)obj;
         
         if (newVnInfo.name != null) {
             name = newVnInfo.name;
@@ -554,7 +554,7 @@ public class VmwareVirtualNetworkInfo extends VCenterObject {
     void sync(VCenterObject obj, VncDB vncDB) 
                     throws Exception {
         
-        VmwareVirtualNetworkInfo oldVnInfo = (VmwareVirtualNetworkInfo)obj;
+        VirtualNetworkInfo oldVnInfo = (VirtualNetworkInfo)obj;
         
         if (apiVn == null && oldVnInfo.apiVn != null) {
             apiVn = oldVnInfo.apiVn;
@@ -565,9 +565,9 @@ public class VmwareVirtualNetworkInfo extends VCenterObject {
     void delete(VncDB vncDB) 
             throws Exception {
                       
-        for (Map.Entry<String, VmwareVirtualMachineInterfaceInfo> entry: 
+        for (Map.Entry<String, VirtualMachineInterfaceInfo> entry: 
             vmiInfoMap.entrySet()) {
-            VmwareVirtualMachineInterfaceInfo vmiInfo = entry.getValue();
+            VirtualMachineInterfaceInfo vmiInfo = entry.getValue();
             vmiInfo.delete(vncDB);
         }
         
